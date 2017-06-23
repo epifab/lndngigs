@@ -1,10 +1,9 @@
 import os
 from collections import namedtuple
-from datetime import datetime
+from datetime import date, timedelta
 
 import pylast
 import robobrowser
-
 
 Event = namedtuple("Event", ["artists", "venue", "time"])
 EventWithTags = namedtuple("EventWithTags", ["event", "tags"])
@@ -25,7 +24,7 @@ class LastFmApi:
 
     def artist_tags(self, artist_name):
         try:
-            return self._lastfm.get_artist(artist_name).get_top_tags(limit=10)
+            return [str(tag.item) for tag in self._lastfm.get_artist(artist_name).get_top_tags(limit=10)]
         except pylast.WSError as ex:
             if ex.status == '6':
                 # Status returned when the artists couldn't be found
@@ -64,16 +63,16 @@ class SongkickApi:
                 venue=venue_name
             )
 
-    def get_events(self, location, date=datetime.utcnow()):
+    def get_events(self, location, events_date=date.today()):
         if location not in self.LOCATIONS:
             raise ValueError("Uknown location {}".format(location))
 
         date_filters = \
             "&filters%5BminDate%5D={month}%2F{day}%2F{year}" \
             "&filters%5BmaxDate%5D={month}%2F{day}%2F{year}".format(
-                year=date.year,
-                month=date.month,
-                day=date.day,
+                year=events_date.year,
+                month=events_date.month,
+                day=events_date.day,
             )
 
         url = "https://www.songkick.com/metro_areas/{location}?utf8=✓{date_filters}".format(
@@ -96,13 +95,13 @@ class SongkickApi:
                 yield from self._scrape_page_events()
 
 
-class EventLister:
+class EventListing:
     def __init__(self, songkick: SongkickApi, lastfm: LastFmApi):
         self._songkick = songkick
         self._lastfm = lastfm
 
-    def get_events(self, location, date=datetime.utcnow()):
-        for event in self._songkick.get_events(location, date):
+    def get_events(self, location, events_date=date.today()):
+        for event in self._songkick.get_events(location, events_date):
             yield EventWithTags(
                 event=event,
                 tags={
@@ -114,4 +113,16 @@ class EventLister:
 
 
 if __name__ == '__main__':
-    print("Hello world")
+    event_listing = EventListing(SongkickApi(), LastFmApi(LastFmConfig()))
+
+    for event_date in [date.today(), date.today() + timedelta(days=1)]:
+        print("*" * 120)
+        print("EVENTS IN LONDON {}:".format(event_date))
+        print("---------------------------")
+
+        for event, tags in event_listing.get_events("london", event_date):
+            print()
+            print("Artists: {}".format(", ".join(event.artists)))
+            print("Venue: {}".format(event.venue))
+            print("Tags: {}".format(", ".join(tags)))
+
