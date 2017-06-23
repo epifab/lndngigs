@@ -6,6 +6,10 @@ import pylast
 import robobrowser
 
 
+Event = namedtuple("Event", ["artists", "venue", "time"])
+EventWithTags = namedtuple("EventWithTags", ["event", "tags"])
+
+
 class LastFmConfig:
     def __init__(self):
         self.LASTFM_API_KEY = os.environ["LASTFM_API_KEY"]
@@ -20,13 +24,22 @@ class LastFmApi:
         )
 
     def artist_tags(self, artist_name):
-        return self._lastfm.get_artist(artist_name).get_top_tags(limit=10)
-
-
-SongkickEvent = namedtuple("SongkickEvent", ["artists", "venue", "time"])
+        try:
+            return self._lastfm.get_artist(artist_name).get_top_tags(limit=10)
+        except pylast.WSError as ex:
+            if ex.status == '6':
+                # Status returned when the artists couldn't be found
+                # http://www.last.fm/api/errorcodes
+                return []
+            raise
 
 
 class SongkickApi:
+    LOCATIONS = {
+        "london": "24426-uk-london",
+        "bristol": "24521-uk-bristol",
+        "porto": "31805-portugal-porto",
+    }
     USER_AGENT = "Mozilla/5.0 (Windows NT 6.2; Win64; x64; rv:21.0.0) Gecko/20121011 Firefox/21.0.0"
 
     def __init__(self):
@@ -45,13 +58,16 @@ class SongkickApi:
             venue_name_element = event.select_one(".venue-name a")
             venue_name = venue_name_element.get_text() if venue_name_element else "UNKNOWN"
 
-            yield SongkickEvent(
-                artists=artist_info_element.get_text(),
+            yield Event(
+                artists=[artist.strip() for artist in artist_info_element.get_text().split(",")],
                 time=event.select_one("time").get("datetime"),
                 venue=venue_name
             )
 
-    def get_events(self, location, date=datetime.utcnow(), limit=50):
+    def get_events(self, location, date=datetime.utcnow()):
+        if location not in self.LOCATIONS:
+            raise ValueError("Uknown location {}".format(location))
+
         date_filters = \
             "&filters%5BminDate%5D={month}%2F{day}%2F{year}" \
             "&filters%5BmaxDate%5D={month}%2F{day}%2F{year}".format(
@@ -61,7 +77,7 @@ class SongkickApi:
             )
 
         url = "https://www.songkick.com/metro_areas/{location}?utf8=✓{date_filters}".format(
-            location=location,
+            location=self.LOCATIONS[location],
             date_filters=date_filters
         )
 
@@ -73,10 +89,28 @@ class SongkickApi:
         while True:
             try:
                 next_page_link = next(iter(self._browser.select(".pagination a.next_page")))
-                self._browser.follow_link(next_page_link)
-                yield from self._scrape_page_events()
             except StopIteration:
                 break
+            else:
+                self._browser.follow_link(next_page_link)
+                yield from self._scrape_page_events()
+
+
+class EventLister:
+    def __init__(self, songkick: SongkickApi, lastfm: LastFmApi):
+        self._songkick = songkick
+        self._lastfm = lastfm
+
+    def get_events(self, location, date=datetime.utcnow()):
+        for event in self._songkick.get_events(location, date):
+            yield EventWithTags(
+                event=event,
+                tags={
+                    item
+                    for sublist in (self._lastfm.artist_tags(artist_name) for artist_name in event.artists)
+                    for item in sublist
+                }
+            )
 
 
 if __name__ == '__main__':
