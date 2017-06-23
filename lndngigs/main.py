@@ -5,7 +5,7 @@ from datetime import date, timedelta
 import pylast
 import robobrowser
 
-Event = namedtuple("Event", ["artists", "venue", "time"])
+Event = namedtuple("Event", ["link", "artists", "venue", "time"])
 EventWithTags = namedtuple("EventWithTags", ["event", "tags"])
 
 
@@ -49,18 +49,29 @@ class SongkickApi:
 
     def _scrape_page_events(self):
         for event in self._browser.select("ul.event-listings li"):
-            artist_info_element = event.select_one(".artists strong")
-            if not artist_info_element:
+            event_summary_element = event.select_one(".summary a")
+            if not event_summary_element:
                 # Will skip every non-event item in the list
                 continue
 
-            venue_name_element = event.select_one(".venue-name a")
-            venue_name = venue_name_element.get_text() if venue_name_element else "UNKNOWN"
+            event_link = "https://www.songkick.com{}".format(event_summary_element.get("href"))
+            event_artists = [artist.strip() for artist in event_summary_element.select_one("strong").get_text().split(",")]
+
+            try:
+                event_venue = event.select_one(".venue-name a").get_text()
+            except AttributeError:
+                event_venue = "?"
+
+            try:
+                event_time = event.select_one("time").get("datetime")
+            except AttributeError:
+                event_time = "?"
 
             yield Event(
-                artists=[artist.strip() for artist in artist_info_element.get_text().split(",")],
-                time=event.select_one("time").get("datetime"),
-                venue=venue_name
+                link=event_link,
+                artists=event_artists,
+                venue=event_venue,
+                time=event_time,
             )
 
     def get_events(self, location, events_date=date.today()):
@@ -118,11 +129,14 @@ if __name__ == '__main__':
     for event_date in [date.today(), date.today() + timedelta(days=1)]:
         print("*" * 120)
         print("EVENTS IN LONDON {}:".format(event_date))
-        print("---------------------------")
+        print("*" * 120)
 
         for event, tags in event_listing.get_events("london", event_date):
             print()
             print("Artists: {}".format(", ".join(event.artists)))
             print("Venue: {}".format(event.venue))
             print("Tags: {}".format(", ".join(tags)))
+            print("Link: {}".format(event.link))
 
+        print()
+        print()
