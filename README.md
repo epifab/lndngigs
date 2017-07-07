@@ -2,9 +2,16 @@
 
 Hack day application to scrape events and aggregate useful information about bands playing in town.
 
-## Install
+
+## Run application using Docker
 
 ```bash
-sudo apt-get install libxml2-dev libxslt1-dev
-pip install -r requirements.txt
+docker build -t lndngigs .
+
+docker run \
+ -e LASTFM_API_KEY=*** \
+ -e LASTFM_API_SECRET=*** \
+ -e SLACK_API_TOKEN=*** \
+ lndngigs \
+ --location bristol --channel @mychannel --date 01-01-2018
 ```
