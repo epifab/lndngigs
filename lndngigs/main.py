@@ -38,6 +38,10 @@ class LastFmApi:
             raise
 
 
+class SlackException(Exception):
+    pass
+
+
 class SlackConfig:
     def __init__(self):
         self.SLACK_API_TOKEN = os.environ["SLACK_API_TOKEN"]
@@ -46,7 +50,8 @@ class SlackConfig:
 class Slack:
     def __init__(self, config: SlackConfig, channel="#lndngigs"):
         self._client = SlackClient(config.SLACK_API_TOKEN)
-        assert self._client.rtm_connect(), "Cannot connect to Slack"
+        if not self._client.rtm_connect():
+            raise SlackException("Cannot connect to Slack")
         self._channel = channel
 
     def event_message(self, event: Event, tags):
@@ -63,7 +68,9 @@ class Slack:
             events_date=events_date,
             gigs="\n\n".join(self.event_message(event, tags) for event, tags in events_with_tags)
         )
-        self._client.api_call("chat.postMessage", channel=self._channel, text=message, as_user=True)
+        results = self._client.api_call("chat.postMessage", channel=self._channel, text=message, as_user=True)
+        if not results['ok']:
+            raise SlackException("Unable to post a message to slack: {}".format(results['error']))
 
 
 class SongkickApi:
@@ -157,7 +164,7 @@ class EventListing:
 
 
 def main(logger, location, events_date, channel):
-    logger.info("Posting gigs for {location} on {date} to {channel}".format(
+    logger.info("Posting events for {location} on {date} to {channel}".format(
         location=location,
         date=events_date,
         channel=channel
@@ -170,6 +177,8 @@ def main(logger, location, events_date, channel):
         location=location,
         events_date=events_date
     )
+
+    logger.info("Events posted")
 
 
 def parse_date(date_str):
