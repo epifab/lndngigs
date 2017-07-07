@@ -4,6 +4,7 @@ from datetime import date, timedelta
 
 import pylast
 import robobrowser
+from slackclient import SlackClient
 
 Event = namedtuple("Event", ["link", "artists", "venue", "time"])
 EventWithTags = namedtuple("EventWithTags", ["event", "tags"])
@@ -31,6 +32,34 @@ class LastFmApi:
                 # http://www.last.fm/api/errorcodes
                 return []
             raise
+
+
+class SlackConfig:
+    def __init__(self):
+        self.SLACK_API_TOKEN = os.environ["SLACK_API_TOKEN"]
+
+
+class Slack:
+    def __init__(self, config: SlackConfig, channel="#lndngigs"):
+        self._client = SlackClient(config.SLACK_API_TOKEN)
+        assert self._client.rtm_connect(), "Cannot connect to Slack"
+        self._channel = channel
+
+    def event_message(self, event: Event, tags):
+        return "> _Artists_: {artists}\n> _Venue_: {venue}\n> _Tags_: {tags}\n> {link}".format(
+            artists=", ".join(event.artists),
+            venue=event.venue,
+            tags=", ".join(tags),
+            link=event.link
+        )
+
+    def post_events(self, events_with_tags, location, date):
+        message = "*Gigs in _{location}_ on _{date}_*\n\n{gigs}".format(
+            location=location,
+            date=date,
+            gigs="\n\n".join(self.event_message(event, tags) for event, tags in events_with_tags)
+        )
+        self._client.api_call("chat.postMessage", channel=self._channel, text=message, as_user=True)
 
 
 class SongkickApi:
@@ -126,17 +155,26 @@ class EventListing:
 if __name__ == '__main__':
     event_listing = EventListing(SongkickApi(), LastFmApi(LastFmConfig()))
 
-    for event_date in [date.today(), date.today() + timedelta(days=1)]:
+    slack = Slack(SlackConfig(), channel="@epifab")
+
+    location = "bristol"
+    today = date.today()
+
+    for event_date in [today, today + timedelta(days=1), today + timedelta(days=2), today + timedelta(days=3)]:
         print("*" * 120)
         print("EVENTS IN LONDON {}:".format(event_date))
         print("*" * 120)
 
-        for event, tags in event_listing.get_events("london", event_date):
+        events_with_tags = list(event_listing.get_events(location, event_date))
+
+        for event, tags in events_with_tags:
             print()
             print("Artists: {}".format(", ".join(event.artists)))
             print("Venue: {}".format(event.venue))
             print("Tags: {}".format(", ".join(tags)))
             print("Link: {}".format(event.link))
+
+        slack.post_events(events_with_tags, location, event_date)
 
         print()
         print()
