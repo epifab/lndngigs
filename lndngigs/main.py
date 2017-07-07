@@ -53,10 +53,10 @@ class Slack:
             link=event.link
         )
 
-    def post_events(self, events_with_tags, location, date):
-        message = "*Gigs in _{location}_ on _{date}_*\n\n{gigs}".format(
+    def post_events(self, events_with_tags, location, events_date):
+        message = "*Gigs in _{location}_ on _{events_date}_*\n\n{gigs}".format(
             location=location,
-            date=date,
+            events_date=events_date,
             gigs="\n\n".join(self.event_message(event, tags) for event, tags in events_with_tags)
         )
         self._client.api_call("chat.postMessage", channel=self._channel, text=message, as_user=True)
@@ -105,7 +105,7 @@ class SongkickApi:
 
     def get_events(self, location, events_date=date.today()):
         if location not in self.LOCATIONS:
-            raise ValueError("Uknown location {}".format(location))
+            raise ValueError("Unknown location {}".format(location))
 
         date_filters = \
             "&filters%5BminDate%5D={month}%2F{day}%2F{year}" \
@@ -141,7 +141,7 @@ class EventListing:
         self._lastfm = lastfm
 
     def get_events(self, location, events_date=date.today()):
-        for event in self._songkick.get_events(location, events_date):
+        for event in self._songkick.get_events(location=location, events_date=events_date):
             yield EventWithTags(
                 event=event,
                 tags={
@@ -152,29 +152,15 @@ class EventListing:
             )
 
 
-if __name__ == '__main__':
+def main(location="london", events_date=date.today()):
     event_listing = EventListing(SongkickApi(), LastFmApi(LastFmConfig()))
+    slack = Slack(SlackConfig(), channel="#lndngigs")
+    slack.post_events(
+        events_with_tags=event_listing.get_events(location=location, events_date=events_date),
+        location=location,
+        events_date=events_date
+    )
 
-    slack = Slack(SlackConfig(), channel="@epifab")
 
-    location = "bristol"
-    today = date.today()
-
-    for event_date in [today, today + timedelta(days=1), today + timedelta(days=2), today + timedelta(days=3)]:
-        print("*" * 120)
-        print("EVENTS IN LONDON {}:".format(event_date))
-        print("*" * 120)
-
-        events_with_tags = list(event_listing.get_events(location, event_date))
-
-        for event, tags in events_with_tags:
-            print()
-            print("Artists: {}".format(", ".join(event.artists)))
-            print("Venue: {}".format(event.venue))
-            print("Tags: {}".format(", ".join(tags)))
-            print("Link: {}".format(event.link))
-
-        slack.post_events(events_with_tags, location, event_date)
-
-        print()
-        print()
+if __name__ == '__main__':
+    main("london")
