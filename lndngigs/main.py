@@ -1,10 +1,14 @@
+import argparse
 import os
+import sys
 from collections import namedtuple
-from datetime import date, timedelta
+from datetime import date, datetime
+import logging
 
 import pylast
 import robobrowser
 from slackclient import SlackClient
+
 
 Event = namedtuple("Event", ["link", "artists", "venue", "time"])
 EventWithTags = namedtuple("EventWithTags", ["event", "tags"])
@@ -152,9 +156,15 @@ class EventListing:
             )
 
 
-def main(location="london", events_date=date.today()):
+def main(logger, location, events_date, channel):
+    logger.info("Posting gigs for {location} on {date} to {channel}".format(
+        location=location,
+        date=events_date,
+        channel=channel
+    ))
+
     event_listing = EventListing(SongkickApi(), LastFmApi(LastFmConfig()))
-    slack = Slack(SlackConfig(), channel="#lndngigs")
+    slack = Slack(SlackConfig(), channel=channel)
     slack.post_events(
         events_with_tags=event_listing.get_events(location=location, events_date=events_date),
         location=location,
@@ -162,5 +172,31 @@ def main(location="london", events_date=date.today()):
     )
 
 
+def parse_date(date_str):
+    return datetime.strptime(date_str, '%d-%m-%Y').date()
+
+
+def get_logger(level=logging.INFO):
+    log_handler = logging.StreamHandler(sys.stdout)
+    log_handler.setLevel(level)
+    log_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s:%(name)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
+
+    logger = logging.getLogger('lndngigs')
+    logger.setLevel(level)
+    logger.addHandler(log_handler)
+
+    return logger
+
+
 if __name__ == '__main__':
-    main("london")
+    logger = get_logger()
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--location', dest='location', default='london')
+    parser.add_argument('--date', dest='date', default=date.today(), type=parse_date)
+    parser.add_argument('--channel', dest='channel', default="#lndngigs")
+
+    args = parser.parse_args(sys.argv[1:])
+
+    main(logger, location=args.location, events_date=args.date, channel=args.channel)
