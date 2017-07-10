@@ -1,8 +1,7 @@
-import argparse
 import os
 import sys
 from collections import namedtuple
-from datetime import date, datetime
+from datetime import date
 import logging
 
 import pylast
@@ -47,7 +46,7 @@ class SlackConfig:
         self.SLACK_API_TOKEN = os.environ["SLACK_API_TOKEN"]
 
 
-class Slack:
+class SlackBot:
     def __init__(self, config: SlackConfig, channel="#lndngigs"):
         self._client = SlackClient(config.SLACK_API_TOKEN)
         if not self._client.rtm_connect():
@@ -62,13 +61,20 @@ class Slack:
             link=event.link
         )
 
-    def post_events(self, events_with_tags, location, events_date):
-        message = "*Gigs in _{location}_ on _{events_date}_*\n\n{gigs}".format(
+    def events_message(self, events_with_tags, location, events_date):
+        return "*Gigs in _{location}_ on _{events_date}_*\n\n{gigs}".format(
             location=location,
             events_date=events_date,
             gigs="\n\n".join(self.event_message(event, tags) for event, tags in events_with_tags)
         )
-        results = self._client.api_call("chat.postMessage", channel=self._channel, text=message, as_user=True)
+
+    def post_events(self, events_with_tags, location, events_date, channel=None):
+        results = self._client.api_call(
+            "chat.postMessage",
+            channel=channel or self._channel,
+            text=self.events_message(events_with_tags, location, events_date),
+            as_user=True
+        )
         if not results['ok']:
             raise SlackException("Unable to post a message to slack: {}".format(results['error']))
 
@@ -163,28 +169,6 @@ class EventListing:
             )
 
 
-def main(logger, location, events_date, channel):
-    logger.info("Posting events for {location} on {date} to {channel}".format(
-        location=location,
-        date=events_date,
-        channel=channel
-    ))
-
-    event_listing = EventListing(SongkickApi(), LastFmApi(LastFmConfig()))
-    slack = Slack(SlackConfig(), channel=channel)
-    slack.post_events(
-        events_with_tags=event_listing.get_events(location=location, events_date=events_date),
-        location=location,
-        events_date=events_date
-    )
-
-    logger.info("Events posted")
-
-
-def parse_date(date_str):
-    return datetime.strptime(date_str, '%d-%m-%Y').date()
-
-
 def get_logger(level=logging.INFO):
     log_handler = logging.StreamHandler(sys.stdout)
     log_handler.setLevel(level)
@@ -195,17 +179,3 @@ def get_logger(level=logging.INFO):
     logger.addHandler(log_handler)
 
     return logger
-
-
-if __name__ == '__main__':
-    logger = get_logger()
-
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('--location', dest='location', default='london')
-    parser.add_argument('--date', dest='date', default=date.today(), type=parse_date)
-    parser.add_argument('--channel', dest='channel', default="#lndngigs")
-
-    args = parser.parse_args(sys.argv[1:])
-
-    main(logger, location=args.location, events_date=args.date, channel=args.channel)

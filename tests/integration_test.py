@@ -1,7 +1,7 @@
 from datetime import date
 import pytest
 
-from lndngigs.main import LastFmConfig, LastFmApi, SongkickApi, EventListing
+from lndngigs.integrations import LastFmConfig, LastFmApi, SongkickApi, EventListing
 
 
 @pytest.fixture()
