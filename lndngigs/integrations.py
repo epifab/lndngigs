@@ -150,10 +150,11 @@ class SlackCommandError(Exception):
 
 
 class SlackBot:
-    def __init__(self, config: SlackConfig, event_listing: EventListing):
+    def __init__(self, logger, config: SlackConfig, event_listing: EventListing):
         self._client = SlackClient(config.SLACK_API_TOKEN)
         if not self._client.rtm_connect():
             raise SlackException("Cannot connect to Slack")
+        self._logger = logger
         self._event_listing = event_listing
 
     def event_message(self, event: Event, tags):
@@ -190,16 +191,24 @@ class SlackBot:
     def run_command(self, message):
         command = message["text"].lower().split()
         usage_examples = ["gigs today", "gigs tomorrow", "gigs 20-03-2017"]
+        location = "london"
 
         try:
             if command[0] == "gigs":
                 try:
                     event_date = parse_date(command[1])
                 except:
+                    self._logger.info("Could not parse a date from `{}`".format(message["text"]))
                     raise SlackCommandError("When do you want to go gigging?")
                 else:
-                    self.post_events_command("london", event_date, message["channel"])
+                    self._logger.info("Sending events for {} in {} to `{}`".format(
+                        event_date,
+                        location,
+                        message["user"]
+                    ))
+                    self.post_events_command(location, event_date, message["channel"])
             else:
+                self._logger.info("Unkown command: `{}`".format(message["text"]))
                 raise SlackCommandError("You wanna gig or not?")
         except SlackCommandError as e:
             self.send_message(
@@ -208,10 +217,15 @@ class SlackBot:
             )
 
     def work(self):
-        while True:
-            for message in self._client.rtm_read():
-                if message['type'] == 'message' and 'bot_id' not in message:
-                    self.run_command(message)
+        self._logger.info("Slack bot up and running!")
+        try:
+            while True:
+                for message in self._client.rtm_read():
+                    if message['type'] == 'message' and 'user' in message and 'bot_id' not in message:
+                        self._logger.info("Received message from `{}`: `{}`".format(message["user"], message["text"]))
+                        self.run_command(message)
+        finally:
+            self._logger.info("Slack bot going to sleep")
 
 
 def get_logger(level=logging.INFO):

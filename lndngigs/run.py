@@ -16,7 +16,7 @@ def main(logger, location, events_date, channel):
 
     event_listing = EventListing(SongkickApi(), LastFmApi(LastFmConfig()))
 
-    bot = SlackBot(SlackConfig(), event_listing=event_listing)
+    bot = SlackBot(logger=logger, config=SlackConfig(), event_listing=event_listing)
 
     bot.post_events_command(
         location=location,
