@@ -3,7 +3,8 @@ from datetime import datetime, date
 
 import sys
 
-from lndngigs.integrations import EventListing, SongkickApi, LastFmApi, LastFmConfig, SlackBot, SlackConfig, get_logger
+from lndngigs.integrations import EventListing, SongkickApi, LastFmApi, LastFmConfig, SlackBot, SlackConfig, \
+    get_logger, parse_date
 
 
 def main(logger, location, events_date, channel):
