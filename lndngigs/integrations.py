@@ -184,9 +184,18 @@ class SlackBot:
 
     def post_events_command(self, location, events_date, channel):
         self.send_message(
-            self.events_message(self._event_listing.get_events(location, events_date), location, events_date),
-            channel
+            message="*Gigs in _{location}_ on _{events_date}_*".format(
+                location=location,
+                events_date=events_date
+            ),
+            channel=channel
         )
+
+        for event, tags in self._event_listing.get_events(location=location, events_date=events_date):
+            self.send_message(
+                message=self.event_message(event, tags),
+                channel=channel
+            )
 
     def run_command(self, message):
         command = message["text"].lower().split()
