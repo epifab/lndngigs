@@ -47,11 +47,11 @@ class SlackConfig:
 
 
 class SlackBot:
-    def __init__(self, config: SlackConfig, channel="#lndngigs"):
+    def __init__(self, config: SlackConfig, event_listing: EventListing):
         self._client = SlackClient(config.SLACK_API_TOKEN)
         if not self._client.rtm_connect():
             raise SlackException("Cannot connect to Slack")
-        self._channel = channel
+        self._event_listing = event_listing
 
     def event_message(self, event: Event, tags):
         return "> _Artists_: {artists}\n> _Venue_: {venue}\n> _Tags_: {tags}\n> {link}".format(
@@ -68,11 +68,11 @@ class SlackBot:
             gigs="\n\n".join(self.event_message(event, tags) for event, tags in events_with_tags)
         )
 
-    def post_events(self, events_with_tags, location, events_date, channel=None):
+    def post_events_command(self, location, events_date, channel):
         results = self._client.api_call(
             "chat.postMessage",
-            channel=channel or self._channel,
-            text=self.events_message(events_with_tags, location, events_date),
+            channel=channel,
+            text=self.events_message(self._event_listing.get_events(location, events_date), location, events_date),
             as_user=True
         )
         if not results['ok']:

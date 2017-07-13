@@ -14,11 +14,13 @@ def main(logger, location, events_date, channel):
     ))
 
     event_listing = EventListing(SongkickApi(), LastFmApi(LastFmConfig()))
-    slack = SlackBot(SlackConfig(), channel=channel)
-    slack.post_events(
-        events_with_tags=event_listing.get_events(location=location, events_date=events_date),
+
+    bot = SlackBot(SlackConfig(), event_listing=event_listing)
+
+    bot.post_events_command(
         location=location,
-        events_date=events_date
+        events_date=events_date,
+        channel=channel
     )
 
     logger.info("Events posted")
