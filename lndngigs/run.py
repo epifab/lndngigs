@@ -26,10 +26,6 @@ def main(logger, location, events_date, channel):
     logger.info("Events posted")
 
 
-def parse_date(date_str):
-    return datetime.strptime(date_str, '%d-%m-%Y').date()
-
-
 if __name__ == '__main__':
     logger = get_logger()
 

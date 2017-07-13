@@ -1,7 +1,7 @@
 import os
 import sys
 from collections import namedtuple
-from datetime import date
+from datetime import datetime, date, timedelta
 import logging
 
 import pylast
@@ -11,6 +11,15 @@ from slackclient import SlackClient
 
 Event = namedtuple("Event", ["link", "artists", "venue", "time"])
 EventWithTags = namedtuple("EventWithTags", ["event", "tags"])
+
+
+def parse_date(date_str):
+    if date_str.lower() == 'today':
+        return date.today()
+    elif date_str.lower() == 'tomorrow':
+        return date.today() + timedelta(days=1)
+    else:
+        return datetime.strptime(date_str, '%d-%m-%Y').date()
 
 
 class LastFmConfig:
@@ -35,48 +44,6 @@ class LastFmApi:
                 # http://www.last.fm/api/errorcodes
                 return []
             raise
-
-
-class SlackException(Exception):
-    pass
-
-
-class SlackConfig:
-    def __init__(self):
-        self.SLACK_API_TOKEN = os.environ["SLACK_API_TOKEN"]
-
-
-class SlackBot:
-    def __init__(self, config: SlackConfig, event_listing: EventListing):
-        self._client = SlackClient(config.SLACK_API_TOKEN)
-        if not self._client.rtm_connect():
-            raise SlackException("Cannot connect to Slack")
-        self._event_listing = event_listing
-
-    def event_message(self, event: Event, tags):
-        return "> _Artists_: {artists}\n> _Venue_: {venue}\n> _Tags_: {tags}\n> {link}".format(
-            artists=", ".join(event.artists),
-            venue=event.venue,
-            tags=", ".join(tags),
-            link=event.link
-        )
-
-    def events_message(self, events_with_tags, location, events_date):
-        return "*Gigs in _{location}_ on _{events_date}_*\n\n{gigs}".format(
-            location=location,
-            events_date=events_date,
-            gigs="\n\n".join(self.event_message(event, tags) for event, tags in events_with_tags)
-        )
-
-    def post_events_command(self, location, events_date, channel):
-        results = self._client.api_call(
-            "chat.postMessage",
-            channel=channel,
-            text=self.events_message(self._event_listing.get_events(location, events_date), location, events_date),
-            as_user=True
-        )
-        if not results['ok']:
-            raise SlackException("Unable to post a message to slack: {}".format(results['error']))
 
 
 class SongkickApi:
@@ -167,6 +134,84 @@ class EventListing:
                     for item in sublist
                 }
             )
+
+
+class SlackException(Exception):
+    pass
+
+
+class SlackConfig:
+    def __init__(self):
+        self.SLACK_API_TOKEN = os.environ["SLACK_API_TOKEN"]
+
+
+class SlackCommandError(Exception):
+    pass
+
+
+class SlackBot:
+    def __init__(self, config: SlackConfig, event_listing: EventListing):
+        self._client = SlackClient(config.SLACK_API_TOKEN)
+        if not self._client.rtm_connect():
+            raise SlackException("Cannot connect to Slack")
+        self._event_listing = event_listing
+
+    def event_message(self, event: Event, tags):
+        return "> _Artists_: {artists}\n> _Venue_: {venue}\n> _Tags_: {tags}\n> {link}".format(
+            artists=", ".join(event.artists),
+            venue=event.venue,
+            tags=", ".join(tags),
+            link=event.link
+        )
+
+    def events_message(self, events_with_tags, location, events_date):
+        return "*Gigs in _{location}_ on _{events_date}_*\n\n{gigs}".format(
+            location=location,
+            events_date=events_date,
+            gigs="\n\n".join(self.event_message(event, tags) for event, tags in events_with_tags)
+        )
+
+    def send_message(self, message, channel):
+        results = self._client.api_call(
+            "chat.postMessage",
+            channel=channel,
+            text=message,
+            as_user=True
+        )
+        if not results['ok']:
+            raise SlackException("Unable to post a message to slack: {}".format(results['error']))
+
+    def post_events_command(self, location, events_date, channel):
+        self.send_message(
+            self.events_message(self._event_listing.get_events(location, events_date), location, events_date),
+            channel
+        )
+
+    def run_command(self, message):
+        command = message["text"].lower().split()
+        usage_examples = ["gigs today", "gigs tomorrow", "gigs 20-03-2017"]
+
+        try:
+            if command[0] == "gigs":
+                try:
+                    event_date = parse_date(command[1])
+                except:
+                    raise SlackCommandError("When do you want to go gigging?")
+                else:
+                    self.post_events_command("london", event_date, message["channel"])
+            else:
+                raise SlackCommandError("You wanna gig or not?")
+        except SlackCommandError as e:
+            self.send_message(
+                "Hmm sorry didn't get that...\n{}\nUsage example:\n> {}".format(e, "\n> ".join(usage_examples)),
+                channel=message["channel"]
+            )
+
+    def work(self):
+        while True:
+            for message in self._client.rtm_read():
+                if message['type'] == 'message' and 'bot_id' not in message:
+                    self.run_command(message)
 
 
 def get_logger(level=logging.INFO):
