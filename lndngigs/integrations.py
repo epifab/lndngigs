@@ -176,6 +176,8 @@ def get_logger(level=logging.INFO):
 
     logger = logging.getLogger('lndngigs')
     logger.setLevel(level)
+    for handler in logger.handlers:
+        logger.removeHandler(handler)
     logger.addHandler(log_handler)
 
     return logger
