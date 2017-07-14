@@ -162,7 +162,8 @@ class SlackBot:
             artists=", ".join(event.artists),
             venue=event.venue,
             tags=", ".join(tags),
-            link=event.link
+            # this will prevent from display an event preview which is annoying when there are a lot of events
+            link=event.link.replace("http://", "").replace("https://", "") if event else "?"
         )
 
     def events_message(self, events_with_tags, location, events_date):
