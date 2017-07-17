@@ -1,5 +1,5 @@
 import argparse
-from datetime import datetime, date
+from datetime import date
 
 import sys
 
@@ -7,7 +7,7 @@ from lndngigs.integrations import EventListing, SongkickApi, LastFmApi, LastFmCo
     get_logger, parse_date
 
 
-def main(logger, location, events_date, channel):
+def run(logger, location, events_date, channel):
     logger.info("Posting events for {location} on {date} to {channel}".format(
         location=location,
         date=events_date,
@@ -38,4 +38,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args(sys.argv[1:])
 
-    main(logger, location=args.location, events_date=args.date, channel=args.channel)
+    run(logger, location=args.location, events_date=args.date, channel=args.channel)

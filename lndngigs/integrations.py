@@ -198,8 +198,8 @@ class SlackBot:
                 channel=channel
             )
 
-    def run_command(self, message):
-        command = message["text"].lower().split()
+    def run_command(self, text, user, channel):
+        command = text.lower().split()
         usage_examples = ["gigs today", "gigs tomorrow", "gigs 20-03-2017"]
         location = "london"
 
@@ -208,22 +208,22 @@ class SlackBot:
                 try:
                     event_date = parse_date(command[1])
                 except:
-                    self._logger.info("Could not parse a date from `{}`".format(message["text"]))
+                    self._logger.info("Could not parse a date from `{}`".format(text))
                     raise SlackCommandError("When do you want to go gigging?")
                 else:
                     self._logger.info("Sending events for {} in {} to `{}`".format(
                         event_date,
                         location,
-                        message["user"]
+                        user
                     ))
-                    self.post_events_command(location, event_date, message["channel"])
+                    self.post_events_command(location, event_date, channel)
             else:
-                self._logger.info("Unkown command: `{}`".format(message["text"]))
+                self._logger.info("Unkown command: `{}`".format(text))
                 raise SlackCommandError("You wanna gig or not?")
         except SlackCommandError as e:
             self.send_message(
                 "Hmm sorry didn't get that...\n{}\nUsage example:\n> {}".format(e, "\n> ".join(usage_examples)),
-                channel=message["channel"]
+                channel=channel
             )
 
     def work(self):
@@ -233,7 +233,11 @@ class SlackBot:
                 for message in self._client.rtm_read():
                     if message['type'] == 'message' and 'user' in message and 'bot_id' not in message:
                         self._logger.info("Received message from `{}`: `{}`".format(message["user"], message["text"]))
-                        self.run_command(message)
+                        self.run_command(
+                            text=message["text"],
+                            user=message["user"],
+                            channel=message["channel"]
+                        )
         finally:
             self._logger.info("Slack bot going to sleep")
 

@@ -3,3 +3,4 @@ pylast==1.8.0
 lxml==3.8.0
 robobrowser==0.5.3
 slackclient==1.0.6
+Flask==0.12.1
