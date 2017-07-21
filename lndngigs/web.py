@@ -8,10 +8,13 @@ from lndngigs.utils import Config, CommandMessagesQueue
 
 app = Flask(__name__)
 
+config = Config()
+logger = get_logger(config.DEBUG)
+
 
 @app.route("/slack/gigs", methods=['POST'])
 def slack_gigs():
-    redis_client = redis.from_url(Config().REDIS_URL)
+    redis_client = redis.from_url(config.REDIS_URL)
 
     logger.debug("Request keys: {}".format(request.form.keys()))
 
@@ -26,8 +29,6 @@ def slack_gigs():
 
 
 if __name__ == '__main__':
-    config = Config()
-    logger = get_logger(config.DEBUG)
     app.run(
         host="0.0.0.0",
         port=int(os.getenv('PORT', 5000))
