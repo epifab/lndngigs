@@ -6,8 +6,8 @@ from datetime import datetime, date, timedelta
 import logging
 
 import pylast
-import redis
 import robobrowser
+import time
 from redis.client import Redis
 from slackclient import SlackClient
 
@@ -41,7 +41,7 @@ class Config:
         self.LASTFM_API_KEY = self.get("LASTFM_API_KEY")
         self.LASTFM_API_SECRET = self.get("LASTFM_API_SECRET")
         self.SLACK_API_TOKEN = self.get("SLACK_API_TOKEN")
-        self.REDIS_URL = self.get("REDIS_URL", default=None)
+        self.REDIS_URL = self.get("REDIS_URL")
         self.DEBUG = self.get("DEBUG", convert=bool, default=False)
 
 
@@ -136,7 +136,12 @@ class SongkickApi:
                 yield from self._scrape_page_events()
 
 
-class EventListing:
+class EventListingInterface:
+    def get_events(self, location, events_date):
+        raise NotImplementedError
+
+
+class EventListing(EventListingInterface):
     def __init__(self, songkick_api: SongkickApi, lastfm_api: LastFmApi):
         self._songkick_api = songkick_api
         self._lastfm_api = lastfm_api
@@ -154,7 +159,7 @@ class EventListing:
             )
 
 
-class CachedEventListing:
+class CachedEventListing(EventListingInterface):
     def __init__(self, logger, event_listing: EventListing, redis_client: Redis, cache_ttl=timedelta(days=3)):
         self._logger = logger
         self._event_listing = event_listing
@@ -216,6 +221,29 @@ class CachedEventListing:
             self.cache_events(location, events_date, events)
 
 
+class CommandMessagesQueue:
+    QUEUE_NAME = "slack-commands"
+
+    def __init__(self, redis_client: Redis, message_ttl=timedelta(seconds=10)):
+        self._redis_client = redis_client
+        self._message_ttl = message_ttl
+
+    def push(self, message):
+        self._redis_client.lpush(self.QUEUE_NAME, json.dumps(message).encode("utf-8"))
+
+    def pop(self):
+        while True:
+            message = self._redis_client.rpop(self.QUEUE_NAME)
+            if message is None:
+                time.sleep(0.1)
+            else:
+                return json.loads(message.decode("utf-8"))
+
+    def messages(self):
+        while True:
+            yield self.pop()
+
+
 class SlackException(Exception):
     pass
 
@@ -225,7 +253,7 @@ class SlackCommandError(Exception):
 
 
 class SlackBot:
-    def __init__(self, logger, event_listing: EventListing, slack_api_token):
+    def __init__(self, logger, event_listing: EventListingInterface, slack_api_token):
         self._client = SlackClient(slack_api_token)
         if not self._client.rtm_connect():
             raise SlackException("Cannot connect to Slack")
@@ -333,28 +361,25 @@ def get_logger(debug=False):
     return logger
 
 
-def get_event_listing(logger, lastfm_api_key, lastfm_api_secret, redis_url):
-    event_listing = EventListing(
-        lastfm_api=LastFmApi(lastfm_api_key=lastfm_api_key, lastfm_api_secret=lastfm_api_secret),
-        songkick_api= SongkickApi(),
+def get_event_listing(logger, redis_client: Redis, lastfm_api_key, lastfm_api_secret):
+    return CachedEventListing(
+        logger=logger,
+        event_listing=EventListing(
+            lastfm_api=LastFmApi(lastfm_api_key=lastfm_api_key, lastfm_api_secret=lastfm_api_secret),
+            songkick_api= SongkickApi(),
+        ),
+        redis_client=redis_client
     )
-    if redis_url:
-        event_listing = CachedEventListing(
-            logger=logger,
-            event_listing=event_listing,
-            redis_client=redis.from_url(redis_url)
-        )
-    return event_listing
 
 
-def get_slack_bot(logger, config: Config):
+def get_slack_bot(logger, redis_client: Redis, config: Config):
     return SlackBot(
         logger=logger,
         event_listing=get_event_listing(
             logger=logger,
             lastfm_api_key=config.LASTFM_API_KEY,
             lastfm_api_secret=config.LASTFM_API_SECRET,
-            redis_url=config.REDIS_URL,
+            redis_client=redis_client,
         ),
         slack_api_token=config.SLACK_API_TOKEN
     )

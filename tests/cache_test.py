@@ -8,7 +8,7 @@ import logging
 import pytest
 import redis
 
-from lndngigs.integrations import EventWithTags, Event, Config, CachedEventListing
+from lndngigs.integrations import EventWithTags, Event, Config, CachedEventListing, CommandMessagesQueue
 
 
 class EventListingMock():
@@ -87,3 +87,11 @@ def test_cached_events_warms_up_and_hits_the_cache(event_listing_mock, redis_cli
 
     # Cache expired by now: will get fresh events and cache them again
     assert list(cached_event_listing.get_events(location=location, events_date=events_date)) == events2
+
+
+def test_queue_messages(redis_client):
+    message = {"foo": "bar"}
+
+    queue = CommandMessagesQueue(redis_client=redis_client)
+    queue.push(message)
+    assert queue.pop() == message

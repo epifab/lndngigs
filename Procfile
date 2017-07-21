@@ -1,1 +1,2 @@
-web: gunicorn lndngigs.main:app
+worker: python -m lndngigs.worker
+web: gunicorn lndngigs.web:app

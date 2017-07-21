@@ -1,7 +1,8 @@
 import argparse
 from datetime import date
-
 import sys
+
+import redis
 
 from lndngigs.integrations import get_logger, Config, get_slack_bot, parse_date
 
@@ -16,7 +17,7 @@ def run(location, events_date, channel):
         channel=channel
     ))
 
-    bot = get_slack_bot(logger=logger, config=config)
+    bot = get_slack_bot(logger=logger, redis_client=redis.from_url(config.REDIS_URL), config=config)
 
     bot.post_events_command(
         location=location,
