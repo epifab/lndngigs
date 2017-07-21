@@ -13,6 +13,8 @@ app = Flask(__name__)
 def slack_gigs():
     redis_client = redis.from_url(Config().REDIS_URL)
 
+    logger.debug("Request keys: {}".format(request.form.keys()))
+
     queue = CommandMessagesQueue(redis_client=redis_client)
     queue.push({
         "text": "gigs {}".format(request.form["text"]),
