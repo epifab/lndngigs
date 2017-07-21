@@ -17,11 +17,29 @@ EventWithTags = namedtuple("EventWithTags", ["event", "tags"])
 
 
 def parse_date(date_str):
-    if date_str.lower() == 'today':
+    weekdays = [
+        ('monday', 'mon'),
+        ('tuesday', 'tue'),
+        ('wednesday', 'wed'),
+        ('thursday', 'thu'),
+        ('friday', 'fri'),
+        ('saturday', 'sat'),
+        ('sunday', 'sun')
+    ]
+
+    date_str = date_str.lower().strip()
+
+    if date_str == 'today':
         return date.today()
-    elif date_str.lower() == 'tomorrow':
+    elif date_str == 'tomorrow':
         return date.today() + timedelta(days=1)
     else:
+        for weekday_index, weekday_names in enumerate(weekdays):
+            if date_str in weekday_names:
+                day = date.today()
+                while day.weekday() != weekday_index:
+                    day += timedelta(days=1)
+                return day
         return datetime.strptime(date_str, '%d-%m-%Y').date()
 
 
@@ -306,23 +324,27 @@ class SlackBot:
 
     def run_command(self, text, user, channel):
         command = text.lower().split()
-        usage_examples = ["gigs today", "gigs tomorrow", "gigs 20-03-2017"]
+        usage_examples = ["gigs today", "gigs tomorrow", "gigs monday", "gigs 20-03-2017"]
         location = "london"
 
         try:
             if command[0] == "gigs":
                 try:
-                    event_date = parse_date(command[1])
+                    events_date = parse_date(command[1])
                 except:
                     self._logger.info("Could not parse a date from `{}`".format(text))
                     raise SlackCommandError("When do you want to go gigging?")
                 else:
+                    self._logger.info("Date out of range: `{}`".format(events_date))
+                    if events_date < date.today() or events_date > date.today() + timedelta(weeks=4):
+                        raise SlackCommandError("Sorry, you can only lookup for gigs happening within four weeks")
+
                     self._logger.info("Sending events for {} in {} to `{}`".format(
-                        event_date,
+                        events_date,
                         location,
                         user
                     ))
-                    self.post_events_command(location, event_date, channel)
+                    self.post_events_command(location, events_date, channel)
             else:
                 self._logger.info("Unkown command: `{}`".format(text))
                 raise SlackCommandError("You wanna gig or not?")
