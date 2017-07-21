@@ -1,9 +1,10 @@
 import os
 
 import redis
-from flask import Flask, request, json
+from flask import Flask, request
 
-from lndngigs.integrations import get_logger, Config, CommandMessagesQueue
+from lndngigs.factories import get_logger
+from lndngigs.utils import Config, CommandMessagesQueue
 
 app = Flask(__name__)
 

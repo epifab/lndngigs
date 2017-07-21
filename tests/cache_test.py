@@ -8,7 +8,9 @@ import logging
 import pytest
 import redis
 
-from lndngigs.integrations import EventWithTags, Event, Config, CachedEventListing, CommandMessagesQueue
+from lndngigs.event_listing import CachedEventListing
+from lndngigs.utils import CommandMessagesQueue
+from lndngigs.entities import Event, EventWithTags
 
 
 class EventListingMock():

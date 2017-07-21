@@ -1,7 +1,7 @@
 import redis
 
-from lndngigs.integrations import get_slack_bot, Config, get_logger, CommandMessagesQueue
-
+from lndngigs.factories import get_slack_bot, get_logger
+from lndngigs.utils import Config, CommandMessagesQueue
 
 if __name__ == '__main__':
     config = Config()

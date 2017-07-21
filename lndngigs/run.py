@@ -4,7 +4,8 @@ import sys
 
 import redis
 
-from lndngigs.integrations import get_logger, Config, get_slack_bot, parse_date
+from lndngigs.factories import get_logger, get_slack_bot
+from lndngigs.utils import parse_date, Config
 
 
 def run(location, events_date, channel):
