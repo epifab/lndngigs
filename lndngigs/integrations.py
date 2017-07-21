@@ -290,13 +290,6 @@ class SlackBot:
             link=event.link.replace("http://", "").replace("https://", "") if event else "?"
         )
 
-    def events_message(self, events_with_tags, location, events_date):
-        return "*Gigs in _{location}_ on _{events_date}_*\n\n{gigs}".format(
-            location=location,
-            events_date=events_date.strftime("%A, %d %B %Y"),
-            gigs="\n\n".join(self.event_message(event, tags) for event, tags in events_with_tags)
-        )
-
     def send_message(self, message, channel):
         results = self._client.api_call(
             "chat.postMessage",
@@ -311,7 +304,7 @@ class SlackBot:
         self.send_message(
             message="*Gigs in _{location}_ on _{events_date}_*".format(
                 location=location,
-                events_date=events_date
+                events_date=events_date.strftime("%A, %d %B %Y")
             ),
             channel=channel
         )
@@ -335,8 +328,8 @@ class SlackBot:
                     self._logger.info("Could not parse a date from `{}`".format(text))
                     raise SlackCommandError("When do you want to go gigging?")
                 else:
-                    self._logger.info("Date out of range: `{}`".format(events_date))
                     if events_date < date.today() or events_date > date.today() + timedelta(weeks=4):
+                        self._logger.info("Date out of range: `{}`".format(events_date))
                         raise SlackCommandError("Sorry, you can only lookup for gigs happening within four weeks")
 
                     self._logger.info("Sending events for {} in {} to `{}`".format(
