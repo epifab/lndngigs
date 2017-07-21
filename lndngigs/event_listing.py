@@ -168,9 +168,9 @@ class CachedEventListing(EventListingInterface):
                     "artists": event.artists,
                     "venue": event.venue,
                     "time": event.time,
-                    "tags": tags
+                    "tags": event.tags
                 }
-                for event, tags in events_with_tags
+                for event in events_with_tags
             ]).encode("utf-8"),
             time=self._cache_ttl
         )

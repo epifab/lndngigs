@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 from slackclient import SlackClient
 
-from lndngigs.entities import Event
+from lndngigs.entities import Event, EventWithTags
 from lndngigs.utils import parse_date
 from lndngigs.event_listing import EventListingInterface
 
@@ -23,11 +23,11 @@ class SlackBot:
         self._logger = logger
         self._event_listing = event_listing
 
-    def event_message(self, event: Event, tags):
+    def event_message(self, event: EventWithTags):
         return "> _Artists_: {artists}\n> _Venue_: {venue}\n> _Tags_: {tags}\n> {link}".format(
             artists=", ".join(event.artists),
             venue=event.venue,
-            tags=", ".join(tags),
+            tags=", ".join(event.tags),
             # this will prevent from display an event preview which is annoying when there are a lot of events
             link=event.link.replace("http://", "").replace("https://", "") if event else "?"
         )
@@ -51,9 +51,9 @@ class SlackBot:
             channel=channel
         )
 
-        for event, tags in self._event_listing.get_events(location=location, events_date=events_date):
+        for event in self._event_listing.get_events(location=location, events_date=events_date):
             self.send_message(
-                message=self.event_message(event, tags),
+                message=self.event_message(event),
                 channel=channel
             )
 

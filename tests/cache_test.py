@@ -10,7 +10,7 @@ import redis
 
 from lndngigs.event_listing import CachedEventListing
 from lndngigs.utils import CommandMessagesQueue
-from lndngigs.entities import Event, EventWithTags
+from lndngigs.entities import EventWithTags
 
 
 class EventListingMock():
