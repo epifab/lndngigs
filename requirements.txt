@@ -5,3 +5,4 @@ robobrowser==0.5.3
 slackclient==1.0.6
 Flask==0.12.1
 redis==2.10.5
+gunicorn==19.4.5
