@@ -293,7 +293,7 @@ class SlackBot:
     def events_message(self, events_with_tags, location, events_date):
         return "*Gigs in _{location}_ on _{events_date}_*\n\n{gigs}".format(
             location=location,
-            events_date=events_date,
+            events_date=events_date.strftime("%A, %d %B %Y"),
             gigs="\n\n".join(self.event_message(event, tags) for event, tags in events_with_tags)
         )
 
