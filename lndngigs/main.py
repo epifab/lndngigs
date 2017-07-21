@@ -1,7 +1,8 @@
 import os
+
 from flask import Flask, request
 
-from lndngigs.integrations import EventListing, SongkickApi, LastFmApi, LastFmConfig, SlackBot, SlackConfig, get_logger
+from lndngigs.integrations import get_logger, Config, get_slack_bot
 
 app = Flask(__name__)
 
@@ -17,16 +18,7 @@ def slack_gigs():
 
 
 if __name__ == '__main__':
-    logger = get_logger()
-
-    slack_bot = SlackBot(
-        logger=logger,
-        config=SlackConfig(),
-        event_listing=EventListing(
-            songkick=SongkickApi(),
-            lastfm=LastFmApi(LastFmConfig())
-        )
-    )
+    slack_bot = get_slack_bot(logger=get_logger(), config=Config())
 
     app.run(
         host="0.0.0.0",

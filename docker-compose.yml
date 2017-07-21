@@ -1,0 +1,11 @@
+lndngigs:
+  build: .
+  links:
+   - redis:redis.local
+  volumes:
+   - .:/home/dev/code
+  environment:
+   - REDIS_URL=redis://redis.local:6379
+
+redis:
+  image: redis:3.0

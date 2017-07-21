@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from collections import namedtuple
@@ -5,7 +6,9 @@ from datetime import datetime, date, timedelta
 import logging
 
 import pylast
+import redis
 import robobrowser
+from redis.client import Redis
 from slackclient import SlackClient
 
 
@@ -22,17 +25,30 @@ def parse_date(date_str):
         return datetime.strptime(date_str, '%d-%m-%Y').date()
 
 
-class LastFmConfig:
+class Config:
+    def get(self, key, **kwargs):
+        if not key in os.environ:
+            if "default" not in kwargs:
+                raise Exception("Environment variable '{}' is missing".format(key))
+            else:
+                return kwargs["default"]
+        try:
+            return kwargs["convert"](os.environ[key]) if "convert" in kwargs else os.environ[key]
+        except:
+            raise Exception("Variable '{}' is invalid".format(key))
+
     def __init__(self):
-        self.LASTFM_API_KEY = os.environ["LASTFM_API_KEY"]
-        self.LASTFM_API_SECRET = os.environ["LASTFM_API_SECRET"]
+        self.LASTFM_API_KEY = self.get("LASTFM_API_KEY")
+        self.LASTFM_API_SECRET = self.get("LASTFM_API_SECRET")
+        self.SLACK_API_TOKEN = self.get("SLACK_API_TOKEN")
+        self.REDIS_URL = self.get("REDIS_URL", default=None)
 
 
 class LastFmApi:
-    def __init__(self, config: LastFmConfig):
+    def __init__(self, lastfm_api_key, lastfm_api_secret):
         self._lastfm = pylast.LastFMNetwork(
-            api_key=config.LASTFM_API_KEY,
-            api_secret=config.LASTFM_API_SECRET
+            api_key=lastfm_api_key,
+            api_secret=lastfm_api_secret
         )
 
     def artist_tags(self, artist_name):
@@ -120,29 +136,83 @@ class SongkickApi:
 
 
 class EventListing:
-    def __init__(self, songkick: SongkickApi, lastfm: LastFmApi):
-        self._songkick = songkick
-        self._lastfm = lastfm
+    def __init__(self, songkick_api: SongkickApi, lastfm_api: LastFmApi):
+        self._songkick_api = songkick_api
+        self._lastfm_api = lastfm_api
 
-    def get_events(self, location, events_date=date.today()):
-        for event in self._songkick.get_events(location=location, events_date=events_date):
+    def get_events(self, location, events_date):
+        # Retrieve events
+        for event in self._songkick_api.get_events(location=location, events_date=events_date):
             yield EventWithTags(
                 event=event,
                 tags={
                     item
-                    for sublist in (self._lastfm.artist_tags(artist_name) for artist_name in event.artists)
+                    for sublist in (self._lastfm_api.artist_tags(artist_name) for artist_name in event.artists)
                     for item in sublist
                 }
             )
 
 
+class CachedEventListing:
+    def __init__(self, event_listing: EventListing, redis_client: Redis, cache_ttl=timedelta(days=3)):
+        self._event_listing = event_listing
+        self._redis_client = redis_client
+        self._cache_ttl = cache_ttl
+
+    def get_cache_key_name(self, location, events_date):
+        return "events:{}:{}".format(location, events_date)
+
+    def get_cached_events(self, location, events_date):
+        key_name = self.get_cache_key_name(location, events_date)
+
+        if not self._redis_client.exists(key_name):
+            return None
+
+        event_json = self._redis_client.get(key_name).decode("utf-8")
+
+        return [
+            EventWithTags(
+                event=Event(
+                    link=event_with_tags["link"],
+                    artists=event_with_tags["artists"],
+                    venue=event_with_tags["venue"],
+                    time=event_with_tags["time"]
+                ),
+                tags=event_with_tags["tags"]
+            )
+            for event_with_tags in json.loads(event_json)
+        ]
+
+    def cache_events(self, location, events_date, events_with_tags):
+        self._redis_client.setex(
+            name=self.get_cache_key_name(location, events_date),
+            value=json.dumps([
+                {
+                    "link": event.link,
+                    "artists": event.artists,
+                    "venue": event.venue,
+                    "time": event.time,
+                    "tags": tags
+                }
+                for event, tags in events_with_tags
+            ]).encode("utf-8"),
+            time=self._cache_ttl
+        )
+
+    def get_events(self, location, events_date):
+        events = self.get_cached_events(location, events_date)
+        if events is not None:
+            yield from events
+        else:
+            events = []
+            for event in self._event_listing.get_events(location, events_date):
+                yield event
+                events.append(event)
+            self.cache_events(location, events_date, events)
+
+
 class SlackException(Exception):
     pass
-
-
-class SlackConfig:
-    def __init__(self):
-        self.SLACK_API_TOKEN = os.environ["SLACK_API_TOKEN"]
 
 
 class SlackCommandError(Exception):
@@ -150,8 +220,8 @@ class SlackCommandError(Exception):
 
 
 class SlackBot:
-    def __init__(self, logger, config: SlackConfig, event_listing: EventListing):
-        self._client = SlackClient(config.SLACK_API_TOKEN)
+    def __init__(self, logger, event_listing: EventListing, slack_api_token):
+        self._client = SlackClient(slack_api_token)
         if not self._client.rtm_connect():
             raise SlackException("Cannot connect to Slack")
         self._logger = logger
@@ -254,3 +324,28 @@ def get_logger(level=logging.INFO):
     logger.addHandler(log_handler)
 
     return logger
+
+
+def get_event_listing(lastfm_api_key, lastfm_api_secret, redis_url):
+    event_listing = EventListing(
+        lastfm_api=LastFmApi(lastfm_api_key=lastfm_api_key, lastfm_api_secret=lastfm_api_secret),
+        songkick_api= SongkickApi(),
+    )
+    if redis_url:
+        event_listing = CachedEventListing(
+            event_listing=event_listing,
+            redis_client=redis.from_url(redis_url)
+        )
+    return event_listing
+
+
+def get_slack_bot(logger, config: Config):
+    return SlackBot(
+        logger=logger,
+        event_listing=get_event_listing(
+            lastfm_api_key=config.LASTFM_API_KEY,
+            lastfm_api_secret=config.LASTFM_API_SECRET,
+            redis_url=config.REDIS_URL,
+        ),
+        slack_api_token=config.SLACK_API_TOKEN
+    )
