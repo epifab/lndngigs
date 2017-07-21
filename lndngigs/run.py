@@ -6,14 +6,17 @@ import sys
 from lndngigs.integrations import get_logger, Config, get_slack_bot, parse_date
 
 
-def run(logger, location, events_date, channel):
+def run(location, events_date, channel):
+    config = Config()
+    logger = get_logger(config.DEBUG)
+
     logger.info("Posting events for {location} on {date} to {channel}".format(
         location=location,
         date=events_date,
         channel=channel
     ))
 
-    bot = get_slack_bot(logger=logger, config=Config())
+    bot = get_slack_bot(logger=logger, config=config)
 
     bot.post_events_command(
         location=location,
@@ -25,8 +28,6 @@ def run(logger, location, events_date, channel):
 
 
 if __name__ == '__main__':
-    logger = get_logger()
-
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--location', dest='location', default='london')
@@ -35,4 +36,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args(sys.argv[1:])
 
-    run(logger, location=args.location, events_date=args.date, channel=args.channel)
+    run(location=args.location, events_date=args.date, channel=args.channel)

@@ -18,7 +18,9 @@ def slack_gigs():
 
 
 if __name__ == '__main__':
-    slack_bot = get_slack_bot(logger=get_logger(), config=Config())
+    config = Config()
+    logger = get_logger(config.DEBUG)
+    slack_bot = get_slack_bot(logger=logger, config=config)
 
     app.run(
         host="0.0.0.0",

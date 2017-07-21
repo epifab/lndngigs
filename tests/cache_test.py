@@ -3,6 +3,8 @@ from random import randint
 from time import sleep
 
 import os
+
+import logging
 import pytest
 import redis
 
@@ -64,6 +66,7 @@ def test_cached_events_warms_up_and_hits_the_cache(event_listing_mock, redis_cli
     seconds = 1
 
     cached_event_listing = CachedEventListing(
+        logger=logging.getLogger("test"),
         event_listing=event_listing_mock,
         redis_client=redis_client,
         cache_ttl=timedelta(seconds=seconds)

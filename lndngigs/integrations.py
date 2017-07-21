@@ -42,6 +42,7 @@ class Config:
         self.LASTFM_API_SECRET = self.get("LASTFM_API_SECRET")
         self.SLACK_API_TOKEN = self.get("SLACK_API_TOKEN")
         self.REDIS_URL = self.get("REDIS_URL", default=None)
+        self.DEBUG = self.get("DEBUG", convert=bool, default=False)
 
 
 class LastFmApi:
@@ -145,16 +146,17 @@ class EventListing:
         for event in self._songkick_api.get_events(location=location, events_date=events_date):
             yield EventWithTags(
                 event=event,
-                tags={
+                tags=[
                     item
                     for sublist in (self._lastfm_api.artist_tags(artist_name) for artist_name in event.artists)
                     for item in sublist
-                }
+                ]
             )
 
 
 class CachedEventListing:
-    def __init__(self, event_listing: EventListing, redis_client: Redis, cache_ttl=timedelta(days=3)):
+    def __init__(self, logger, event_listing: EventListing, redis_client: Redis, cache_ttl=timedelta(days=3)):
+        self._logger = logger
         self._event_listing = event_listing
         self._redis_client = redis_client
         self._cache_ttl = cache_ttl
@@ -166,7 +168,10 @@ class CachedEventListing:
         key_name = self.get_cache_key_name(location, events_date)
 
         if not self._redis_client.exists(key_name):
+            self._logger.debug("Cache miss `{}`".format(key_name))
             return None
+
+        self._logger.debug("Cache hit `{}`".format(key_name))
 
         event_json = self._redis_client.get(key_name).decode("utf-8")
 
@@ -312,7 +317,9 @@ class SlackBot:
             self._logger.info("Slack bot going to sleep")
 
 
-def get_logger(level=logging.INFO):
+def get_logger(debug=False):
+    level = logging.DEBUG if debug else logging.INFO
+
     log_handler = logging.StreamHandler(sys.stdout)
     log_handler.setLevel(level)
     log_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s:%(name)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
@@ -326,13 +333,14 @@ def get_logger(level=logging.INFO):
     return logger
 
 
-def get_event_listing(lastfm_api_key, lastfm_api_secret, redis_url):
+def get_event_listing(logger, lastfm_api_key, lastfm_api_secret, redis_url):
     event_listing = EventListing(
         lastfm_api=LastFmApi(lastfm_api_key=lastfm_api_key, lastfm_api_secret=lastfm_api_secret),
         songkick_api= SongkickApi(),
     )
     if redis_url:
         event_listing = CachedEventListing(
+            logger=logger,
             event_listing=event_listing,
             redis_client=redis.from_url(redis_url)
         )
@@ -343,6 +351,7 @@ def get_slack_bot(logger, config: Config):
     return SlackBot(
         logger=logger,
         event_listing=get_event_listing(
+            logger=logger,
             lastfm_api_key=config.LASTFM_API_KEY,
             lastfm_api_secret=config.LASTFM_API_SECRET,
             redis_url=config.REDIS_URL,

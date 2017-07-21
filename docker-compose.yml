@@ -6,6 +6,7 @@ lndngigs:
    - .:/home/dev/code
   environment:
    - REDIS_URL=redis://redis.local:6379
+   - DEBUG=1
 
 redis:
   image: redis:3.0
