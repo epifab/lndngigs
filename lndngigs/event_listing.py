@@ -1,5 +1,5 @@
 import json
-from datetime import timedelta, date
+from datetime import timedelta
 
 import pylast
 import robobrowser
@@ -114,7 +114,10 @@ class EventListing(EventListingInterface):
         # Retrieve events
         for event in self._songkick_api.get_events(location=location, events_date=events_date):
             yield EventWithTags(
-                event=event,
+                link=event.link,
+                artists=event.artists,
+                venue=event.venue,
+                time=event.time,
                 tags=[
                     item
                     for sublist in (self._lastfm_api.artist_tags(artist_name) for artist_name in event.artists)
@@ -146,13 +149,11 @@ class CachedEventListing(EventListingInterface):
 
         return [
             EventWithTags(
-                event=Event(
-                    link=event_with_tags["link"],
-                    artists=event_with_tags["artists"],
-                    venue=event_with_tags["venue"],
-                    time=event_with_tags["time"]
-                ),
-                tags=event_with_tags["tags"]
+                link=event_with_tags["link"],
+                artists=event_with_tags["artists"],
+                venue=event_with_tags["venue"],
+                time=event_with_tags["time"],
+                tags=event_with_tags["tags"],
             )
             for event_with_tags in json.loads(event_json)
         ]
@@ -180,7 +181,7 @@ class CachedEventListing(EventListingInterface):
         if events is not None:
             yield from events
         else:
-            self._logger.debug("Rertieving events for {} in {}...".format(events_date, location))
+            self._logger.debug("Retrieving events for {} in {}...".format(events_date, location))
             events = []
             for event in self._event_listing.get_events(location, events_date):
                 yield event
