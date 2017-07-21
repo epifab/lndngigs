@@ -194,8 +194,9 @@ class CachedEventListing(EventListingInterface):
         ]
 
     def cache_events(self, location, events_date, events_with_tags):
+        key_name = self.get_cache_key_name(location, events_date)
         self._redis_client.setex(
-            name=self.get_cache_key_name(location, events_date),
+            name=key_name,
             value=json.dumps([
                 {
                     "link": event.link,
@@ -208,12 +209,14 @@ class CachedEventListing(EventListingInterface):
             ]).encode("utf-8"),
             time=self._cache_ttl
         )
+        self._logger.debug("{} events cached: `{}`".format(len(events_with_tags), key_name))
 
     def get_events(self, location, events_date):
         events = self.get_cached_events(location, events_date)
         if events is not None:
             yield from events
         else:
+            self._logger.debug("Rertieving events for {} in {}...".format(events_date, location))
             events = []
             for event in self._event_listing.get_events(location, events_date):
                 yield event

@@ -19,7 +19,7 @@ def slack_gigs():
         "channel": request.form["channel_id"],
     })
 
-    return 'OK'
+    return "Yo! I asked a friend about those gigs... stay tuned!"
 
 
 if __name__ == '__main__':
