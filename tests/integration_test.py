@@ -1,4 +1,3 @@
-from datetime import date
 import pytest
 
 from lndngigs.event_listing import EventListing, LastFmApi, SongkickApi
@@ -42,11 +41,17 @@ def test_lastfm_api_with_unknown_artist(lastfm_api: LastFmApi):
 
 @pytest.mark.skip()
 def test_songkick_scraper(songkick_api: SongkickApi):
-    events = songkick_api.get_events(location="london", events_date=date.today())
-    assert len(list(events)) > 10
+    events = songkick_api.get_events(
+        location=songkick_api.parse_event_location("london"),
+        events_date=songkick_api.parse_event_date("monday")
+    )
+    assert len(list(events)) > 0
 
 
 @pytest.mark.skip()
 def test_event_with_tags(event_listing: EventListing):
-    events_with_tags = event_listing.get_events("london", events_date=date.today())
-    assert len(list(events_with_tags)) > 10
+    events_with_tags = event_listing.get_events(
+        location=event_listing.parse_event_location("london"),
+        events_date=event_listing.parse_event_date("monday")
+    )
+    assert len(list(events_with_tags)) > 0

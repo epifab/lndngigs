@@ -1,9 +1,7 @@
-from datetime import date, timedelta
-
 from slackclient import SlackClient
 
-from lndngigs.entities import Event, EventWithTags
-from lndngigs.utils import parse_date
+from lndngigs.entities import EventWithTags
+from lndngigs.utils import ValidationException
 from lndngigs.event_listing import EventListingInterface
 
 
@@ -60,26 +58,24 @@ class SlackBot:
     def run_command(self, text, user, channel):
         command = text.lower().split()
         usage_examples = ["gigs today", "gigs tomorrow", "gigs monday", "gigs 20-03-2017"]
-        location = "london"
 
         try:
             if command[0] == "gigs":
-                try:
-                    events_date = parse_date(command[1])
-                except:
-                    self._logger.info("Could not parse a date from `{}`".format(text))
-                    raise SlackCommandError("When do you want to go gigging?")
-                else:
-                    if events_date < date.today() or events_date > date.today() + timedelta(weeks=4):
-                        self._logger.info("Date out of range: `{}`".format(events_date))
-                        raise SlackCommandError("Sorry, you can only lookup for gigs happening within four weeks")
+                # todo: take location as a (optional?) parameter
+                location = self._event_listing.parse_event_location("london")
 
-                    self._logger.info("Sending events for {} in {} to `{}`".format(
-                        events_date,
-                        location,
-                        user
-                    ))
-                    self.post_events_command(location, events_date, channel)
+                try:
+                    events_date = self._event_listing.parse_event_date(command[1])
+                except ValidationException as e:
+                    self._logger.info(str(e))
+                    raise SlackCommandError(str(e))
+
+                self._logger.info("Sending events for {} in {} to `{}`".format(
+                    events_date,
+                    location,
+                    user
+                ))
+                self.post_events_command(location, events_date, channel)
             else:
                 self._logger.info("Unkown command: `{}`".format(text))
                 raise SlackCommandError("You wanna gig or not?")

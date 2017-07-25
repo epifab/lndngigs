@@ -1,5 +1,5 @@
 import json
-from datetime import timedelta
+from datetime import timedelta, date
 
 import pylast
 import robobrowser
@@ -7,10 +7,17 @@ import robobrowser
 from redis import Redis
 
 from lndngigs.entities import EventWithTags, Event
+from lndngigs.utils import ValidationException, parse_date
 
 
 class EventListingInterface:
     def get_events(self, location, events_date):
+        raise NotImplementedError
+
+    def parse_event_date(self, date_str):
+        raise NotImplementedError
+
+    def parse_event_location(self, location):
         raise NotImplementedError
 
 
@@ -32,13 +39,35 @@ class LastFmApi:
             raise
 
 
-class SongkickApi:
+class SongkickApi(EventListingInterface):
     LOCATIONS = {
         "london": "24426-uk-london",
-        "bristol": "24521-uk-bristol",
-        "porto": "31805-portugal-porto",
+        "berlin": "28443-germany-berlin",
+        "amsterdam": "31366-netherlands-amsterdam",
+        "barcelona": "28714-spain-barcelona",
     }
     USER_AGENT = "Mozilla/5.0 (Windows NT 6.2; Win64; x64; rv:21.0.0) Gecko/20121011 Firefox/21.0.0"
+
+    @classmethod
+    def parse_event_location(self, location: str):
+        location = location.lower()
+        if location not in self.LOCATIONS.keys():
+            raise ValidationException("`{}` is not a supported location. Try with: {}".format(
+                location,
+                ", ".join(self.LOCATIONS)
+            ))
+        return self.LOCATIONS[location]
+
+    @classmethod
+    def parse_event_date(self, date_str):
+        try:
+            events_date = parse_date(date_str)
+        except:
+            raise ValidationException("Could not parse a date from `{}`".format(date_str))
+        else:
+            if events_date < date.today() or events_date > date.today() + timedelta(weeks=4):
+                raise ValidationException("Could only lookup for events happening within 4 weeks from now")
+            return events_date
 
     def __init__(self):
         self._browser = robobrowser.RoboBrowser(
@@ -74,8 +103,11 @@ class SongkickApi:
             )
 
     def get_events(self, location, events_date):
-        if location not in self.LOCATIONS:
-            raise ValueError("Unknown location {}".format(location))
+        if location not in self.LOCATIONS.items():
+            raise ValueError("Unsupported location `{}`. Available locations are: {}".format(
+                location,
+                ", ".join(self.LOCATIONS.values())
+            ))
 
         date_filters = \
             "&filters%5BminDate%5D={month}%2F{day}%2F{year}" \
@@ -86,7 +118,7 @@ class SongkickApi:
             )
 
         url = "https://www.songkick.com/metro_areas/{location}?utf8=✓{date_filters}".format(
-            location=self.LOCATIONS[location],
+            location=location,
             date_filters=date_filters
         )
 
@@ -125,9 +157,15 @@ class EventListing(EventListingInterface):
                 ]
             )
 
+    def parse_event_date(self, date_str):
+        return self._songkick_api.parse_event_date(date_str)
+
+    def parse_event_location(self, location):
+        return self._songkick_api.parse_event_location(location)
+
 
 class CachedEventListing(EventListingInterface):
-    def __init__(self, logger, event_listing: EventListing, redis_client: Redis, cache_ttl=timedelta(days=3)):
+    def __init__(self, logger, event_listing: EventListingInterface, redis_client: Redis, cache_ttl=timedelta(days=3)):
         self._logger = logger
         self._event_listing = event_listing
         self._redis_client = redis_client
@@ -187,3 +225,9 @@ class CachedEventListing(EventListingInterface):
                 yield event
                 events.append(event)
             self.cache_events(location, events_date, events)
+
+    def parse_event_date(self, date_str):
+        return self._event_listing.parse_event_date(date_str)
+
+    def parse_event_location(self, location):
+        return self._event_listing.parse_event_location(location)

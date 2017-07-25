@@ -6,6 +6,10 @@ from datetime import date, timedelta, datetime
 from redis import Redis
 
 
+class ValidationException(Exception):
+    pass
+
+
 def parse_date(date_str):
     weekdays = [
         ('monday', 'mon'),
