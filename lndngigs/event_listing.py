@@ -103,7 +103,7 @@ class SongkickApi(EventListingInterface):
             )
 
     def get_events(self, location, events_date):
-        if location not in self.LOCATIONS.items():
+        if location not in self.LOCATIONS.values():
             raise ValueError("Unsupported location `{}`. Available locations are: {}".format(
                 location,
                 ", ".join(self.LOCATIONS.values())
