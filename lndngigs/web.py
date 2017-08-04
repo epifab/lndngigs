@@ -14,6 +14,9 @@ logger = get_logger(config.DEBUG)
 
 @app.route("/slack/gigs", methods=['POST'])
 def slack_gigs():
+    if "token" not in request.form or request.form["token"] != config.SLACK_VALIDATION_TOKEN:
+        return "Invalid token", 403
+
     redis_client = redis.from_url(config.REDIS_URL)
 
     logger.debug("Request keys: {}".format(", ".join(request.form.keys())))
