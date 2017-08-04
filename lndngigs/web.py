@@ -16,13 +16,13 @@ logger = get_logger(config.DEBUG)
 def slack_gigs():
     redis_client = redis.from_url(config.REDIS_URL)
 
-    logger.debug("Request keys: {}".format(request.form.keys()))
+    logger.debug("Request keys: {}".format(", ".join(request.form.keys())))
 
     queue = CommandMessagesQueue(redis_client=redis_client)
     queue.push({
         "text": "gigs {}".format(request.form["text"]),
         "user": request.form["user_name"],
-        "channel": request.form["channel_id"],
+        "channel": "@{}".format(request.form["user_name"])  # request.form["channel_id"],
     })
 
     return "Yo! I asked a friend about those gigs... stay tuned!"
