@@ -72,7 +72,7 @@ class SlackBot:
 
                 self._logger.info("Sending events for {} in {} to `{}`".format(
                     events_date,
-                    location,
+                    "london",
                     user
                 ))
                 self.post_events_command(location, events_date, channel)
