@@ -3,7 +3,6 @@ from datetime import timedelta, date
 
 import pylast
 import robobrowser
-
 from redis import Redis
 
 from lndngigs.entities import EventWithTags, Event
@@ -139,9 +138,31 @@ class AsyncSongkickApi(EventListingInterface):
     parse_event_location = SongkickApi.parse_event_location
     parse_event_date = SongkickApi.parse_event_date
 
-    def get_events(self, location, events_date):
-        url = SongkickApi.get_events_listing_url(location, events_date)
+    def __init__(self, event_loop):
+        self._event_loop = event_loop
+
+    async def _scrape_event(self, url):
+        # todo:
+        # 1) request page
+        # 2) parse all info
         raise NotImplementedError
+
+    async def _scrape_events_page(self, url):
+        # todo:
+        # 1) request page
+        # 2) parse all events
+        # 3) gather from _scrape_event
+        raise NotImplementedError
+
+    async def _scrape_events(self, url):
+        # todo:
+        # 1) requests page
+        # 2) parse all pages
+        # 3) gather from _scrape_events_page
+        raise NotImplementedError
+
+    def get_events(self, location, events_date):
+        return self._scrape_events(SongkickApi.get_events_listing_url(location, events_date))
 
 
 class EventListing(EventListingInterface):
