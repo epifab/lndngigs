@@ -49,17 +49,17 @@ class SongkickApi(EventListingInterface):
     USER_AGENT = "Mozilla/5.0 (Windows NT 6.2; Win64; x64; rv:21.0.0) Gecko/20121011 Firefox/21.0.0"
 
     @classmethod
-    def parse_event_location(self, location: str):
+    def parse_event_location(cls, location: str):
         location = location.lower()
-        if location not in self.LOCATIONS.keys():
+        if location not in cls.LOCATIONS.keys():
             raise ValidationException("`{}` is not a supported location. Try with: {}".format(
                 location,
-                ", ".join(self.LOCATIONS)
+                ", ".join(cls.LOCATIONS)
             ))
-        return self.LOCATIONS[location]
+        return cls.LOCATIONS[location]
 
     @classmethod
-    def parse_event_date(self, date_str):
+    def parse_event_date(cls, date_str):
         try:
             events_date = parse_date(date_str)
         except:
@@ -68,6 +68,21 @@ class SongkickApi(EventListingInterface):
             if events_date < date.today() or events_date > date.today() + timedelta(weeks=4):
                 raise ValidationException("Could only lookup for events happening within 4 weeks from now")
             return events_date
+
+    @classmethod
+    def get_events_listing_url(cls, location, events_date):
+        date_filters = \
+            "&filters%5BminDate%5D={month}%2F{day}%2F{year}" \
+            "&filters%5BmaxDate%5D={month}%2F{day}%2F{year}".format(
+                year=events_date.year,
+                month=events_date.month,
+                day=events_date.day,
+            )
+
+        return "https://www.songkick.com/metro_areas/{location}?utf8=✓{date_filters}".format(
+            location=location,
+            date_filters=date_filters
+        )
 
     def __init__(self):
         self._browser = robobrowser.RoboBrowser(
@@ -103,29 +118,12 @@ class SongkickApi(EventListingInterface):
             )
 
     def get_events(self, location, events_date):
-        if location not in self.LOCATIONS.values():
-            raise ValueError("Unsupported location `{}`. Available locations are: {}".format(
-                location,
-                ", ".join(self.LOCATIONS.values())
-            ))
-
-        date_filters = \
-            "&filters%5BminDate%5D={month}%2F{day}%2F{year}" \
-            "&filters%5BmaxDate%5D={month}%2F{day}%2F{year}".format(
-                year=events_date.year,
-                month=events_date.month,
-                day=events_date.day,
-            )
-
-        url = "https://www.songkick.com/metro_areas/{location}?utf8=✓{date_filters}".format(
-            location=location,
-            date_filters=date_filters
-        )
+        url = self.get_events_listing_url(location, events_date)
 
         self._browser.open(url)
 
         # Scrape the first page
-        yield from self._scrape_page_events()
+        self._scrape_page_events()
 
         while True:
             try:
@@ -135,6 +133,15 @@ class SongkickApi(EventListingInterface):
             else:
                 self._browser.follow_link(next_page_link)
                 yield from self._scrape_page_events()
+
+
+class AsyncSongkickApi(EventListingInterface):
+    parse_event_location = SongkickApi.parse_event_location
+    parse_event_date = SongkickApi.parse_event_date
+
+    def get_events(self, location, events_date):
+        url = SongkickApi.get_events_listing_url(location, events_date)
+        raise NotImplementedError
 
 
 class EventListing(EventListingInterface):
