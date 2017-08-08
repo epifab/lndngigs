@@ -1,9 +1,12 @@
+import asyncio
 import json
 from datetime import timedelta, date
 
 import pylast
 import robobrowser
 from redis import Redis
+from aiohttp import ClientSession
+from lxml import html
 
 from lndngigs.entities import EventWithTags, Event
 from lndngigs.utils import ValidationException, parse_date
@@ -104,16 +107,10 @@ class SongkickApi(EventListingInterface):
             except AttributeError:
                 event_venue = "?"
 
-            try:
-                event_time = event.select_one("time").get("datetime")
-            except AttributeError:
-                event_time = "?"
-
             yield Event(
                 link=event_link,
                 artists=event_artists,
                 venue=event_venue,
-                time=event_time,
             )
 
     def get_events(self, location, events_date):
@@ -134,6 +131,24 @@ class SongkickApi(EventListingInterface):
                 yield from self._scrape_page_events()
 
 
+async def fetch(url, session):
+    async with session.get(url) as response:
+        return url, await response.read()
+
+
+async def fetch_urls(func, urls):
+    async with ClientSession() as session:
+        tasks = [
+            asyncio.ensure_future(fetch(url, session))
+            for url in urls
+        ]
+
+        return [
+            func(url, response)
+            for url, response in await asyncio.gather(*tasks)
+        ]
+
+
 class AsyncSongkickApi(EventListingInterface):
     parse_event_location = SongkickApi.parse_event_location
     parse_event_date = SongkickApi.parse_event_date
@@ -141,28 +156,63 @@ class AsyncSongkickApi(EventListingInterface):
     def __init__(self, event_loop):
         self._event_loop = event_loop
 
-    async def _scrape_event(self, url):
-        # todo:
-        # 1) request page
-        # 2) parse all info
-        raise NotImplementedError
+    @staticmethod
+    def parse_event_page(url, content):
+        tree = html.fromstring(content)
 
-    async def _scrape_events_page(self, url):
-        # todo:
-        # 1) request page
-        # 2) parse all events
-        # 3) gather from _scrape_event
-        raise NotImplementedError
+        artists = [
+            element.text.strip()
+            for element in tree.cssselect(".line-up a")
+            if "href" in element.attrib and element.attrib["href"].startswith("/artists/")
+        ]
 
-    async def _scrape_events(self, url):
-        # todo:
-        # 1) requests page
-        # 2) parse all pages
-        # 3) gather from _scrape_events_page
-        raise NotImplementedError
+        venue = ",".join([
+            element.text_strip()
+            for element in tree.cssselect(".location a")
+            if element.attrib["href"].startswith("/venues/")
+        ]) or "?"
+
+        return Event(link=url, artists=artists, venue=venue)
+
+    @staticmethod
+    def parse_event_listing_page(url, content):
+        tree = html.fromstring(content)
+
+        event_urls = {
+            "http://www.songkick.com{}".format(element.attrib["href"])
+            for element in tree.cssselect(".event-listing a")
+            if element.attrib["href"].startswith("/concerts/")
+        }
+
+        page_urls = {
+            "http://www.songkick.com{}".format(element.attrib["href"])
+            for element in tree.cssselect(".pagination a")
+            if "?page=" in element.attrib["href"]
+        }
+
+        return event_urls, page_urls
+
+    def scrape_event_urls(self, url):
+        scraped = set()
+        discovered = {url}
+        all_event_urls = []
+        
+        while discovered:
+            # Scrape the discovered pages
+            url_fetcher = fetch_urls(self.parse_event_listing_page, discovered)
+            for event_urls, page_urls in self._event_loop.run_until_complete(url_fetcher):
+                # Adds the discovered to the scraped set
+                scraped |= set(discovered)
+                discovered = {url for url in page_urls if url not in scraped}
+                all_event_urls += event_urls
+
+        return all_event_urls
 
     def get_events(self, location, events_date):
-        return self._scrape_events(SongkickApi.get_events_listing_url(location, events_date))
+        first_page_url = SongkickApi.get_events_listing_url(location, events_date)
+        return self._event_loop.run_until_complete(
+            fetch_urls(self.parse_event_page, self.scrape_event_urls(first_page_url))
+        )
 
 
 class EventListing(EventListingInterface):
@@ -177,7 +227,6 @@ class EventListing(EventListingInterface):
                 link=event.link,
                 artists=event.artists,
                 venue=event.venue,
-                time=event.time,
                 tags=[
                     item
                     for sublist in (self._lastfm_api.artist_tags(artist_name) for artist_name in event.artists)
@@ -218,7 +267,6 @@ class CachedEventListing(EventListingInterface):
                 link=event_with_tags["link"],
                 artists=event_with_tags["artists"],
                 venue=event_with_tags["venue"],
-                time=event_with_tags["time"],
                 tags=event_with_tags["tags"],
             )
             for event_with_tags in json.loads(event_json)
@@ -233,7 +281,6 @@ class CachedEventListing(EventListingInterface):
                     "link": event.link,
                     "artists": event.artists,
                     "venue": event.venue,
-                    "time": event.time,
                     "tags": event.tags
                 }
                 for event in events_with_tags

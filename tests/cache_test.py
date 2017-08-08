@@ -45,7 +45,6 @@ def test_cached_events_warms_up_and_hits_the_cache(event_listing_mock, redis_cli
         EventWithTags(
             artists=["Radiohead"],
             venue="Roundhouse",
-            time="7pm",
             link="http://doesnt-really-matter.com/radiohead-at-roundhouse",
             tags=["Rock", "Awesome", "Thom Yorke"],
         )
@@ -55,7 +54,6 @@ def test_cached_events_warms_up_and_hits_the_cache(event_listing_mock, redis_cli
         EventWithTags(
             artists=["Black Sabbath", "Soundgarden", "Faith No More", "Motorhead"],
             venue="Hyde Park",
-            time="4pm",
             link="http://doesnt-really-matter.com/british-summer-time-2015",
             tags=["Heavy", "Grunge", "Hard rock", "Legendary"]
         )

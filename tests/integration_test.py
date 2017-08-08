@@ -1,6 +1,6 @@
 import pytest
 
-from lndngigs.event_listing import EventListing, LastFmApi, SongkickApi
+from lndngigs.event_listing import EventListing, LastFmApi, SongkickApi, AsyncSongkickApi
 from lndngigs.utils import Config
 
 
@@ -55,3 +55,14 @@ def test_event_with_tags(event_listing: EventListing):
         events_date=event_listing.parse_event_date("monday")
     )
     assert len(list(events_with_tags)) > 0
+
+
+def test_async_songkick_scraper():
+    import asyncio
+    loop = asyncio.get_event_loop()
+    songkick_api = AsyncSongkickApi(loop)
+    events = songkick_api.get_events(
+        songkick_api.parse_event_location("london"),
+        songkick_api.parse_event_date("saturday")
+    )
+    assert events
