@@ -153,11 +153,12 @@ class AsyncSongkickApi(EventListingInterface):
     parse_event_location = SongkickApi.parse_event_location
     parse_event_date = SongkickApi.parse_event_date
 
-    def __init__(self, event_loop):
+    def __init__(self, logger, event_loop):
+        self._logger = logger
         self._event_loop = event_loop
 
-    @staticmethod
-    def parse_event_page(url, content):
+    def parse_event_page(self, url, content):
+        self._logger.debug("Scraping event at {}".format(url))
         tree = html.fromstring(content)
 
         artists = [
@@ -167,27 +168,26 @@ class AsyncSongkickApi(EventListingInterface):
         ]
 
         venue = ",".join([
-            element.text_strip()
+            element.text.strip()
             for element in tree.cssselect(".location a")
             if element.attrib["href"].startswith("/venues/")
         ]) or "?"
 
         return Event(link=url, artists=artists, venue=venue)
 
-    @staticmethod
-    def parse_event_listing_page(url, content):
+    def parse_event_listing_page(self, url, content):
+        self._logger.debug("Scraping event listing at {}".format(url))
         tree = html.fromstring(content)
 
         event_urls = {
             "http://www.songkick.com{}".format(element.attrib["href"])
-            for element in tree.cssselect(".event-listing a")
+            for element in tree.cssselect(".event-listings a")
             if element.attrib["href"].startswith("/concerts/")
         }
 
         page_urls = {
             "http://www.songkick.com{}".format(element.attrib["href"])
             for element in tree.cssselect(".pagination a")
-            if "?page=" in element.attrib["href"]
         }
 
         return event_urls, page_urls
@@ -203,7 +203,11 @@ class AsyncSongkickApi(EventListingInterface):
             for event_urls, page_urls in self._event_loop.run_until_complete(url_fetcher):
                 # Adds the discovered to the scraped set
                 scraped |= set(discovered)
-                discovered = {url for url in page_urls if url not in scraped}
+                discovered = {
+                    url for url in page_urls
+                    if url not in scraped
+                    and "page=1" not in url  # This will prevent the first page from being scraped twice
+                }
                 all_event_urls += event_urls
 
         return all_event_urls

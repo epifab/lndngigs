@@ -1,7 +1,15 @@
+import asyncio
+
 import pytest
 
 from lndngigs.event_listing import EventListing, LastFmApi, SongkickApi, AsyncSongkickApi
+from lndngigs.factories import get_logger
 from lndngigs.utils import Config
+
+
+@pytest.fixture()
+def logger():
+    return get_logger(True)
 
 
 @pytest.fixture()
@@ -57,12 +65,10 @@ def test_event_with_tags(event_listing: EventListing):
     assert len(list(events_with_tags)) > 0
 
 
-def test_async_songkick_scraper():
-    import asyncio
-    loop = asyncio.get_event_loop()
-    songkick_api = AsyncSongkickApi(loop)
+def test_async_songkick_scraper(logger):
+    songkick_api = AsyncSongkickApi(logger, asyncio.get_event_loop())
     events = songkick_api.get_events(
         songkick_api.parse_event_location("london"),
         songkick_api.parse_event_date("saturday")
     )
-    assert events
+    assert len(events) > 10  # At least 10 events in london on a saturday night
