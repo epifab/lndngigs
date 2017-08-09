@@ -119,7 +119,7 @@ class SongkickApi(EventListingInterface):
         self._browser.open(url)
 
         # Scrape the first page
-        self._scrape_page_events()
+        yield from self._scrape_page_events()
 
         while True:
             try:
