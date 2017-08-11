@@ -2,7 +2,8 @@ import asyncio
 
 import pytest
 
-from lndngigs.event_listing import EventListing, LastFmApi, SongkickApi, AsyncSongkickApi, AsyncEventListing
+from lndngigs.event_listing import EventListing, LastFmApi, SongkickApi
+from lndngigs.async_event_listing import AsyncSongkickApi, AsyncEventListing
 from lndngigs.factories import get_logger
 from lndngigs.utils import Config
 
