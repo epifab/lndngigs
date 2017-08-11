@@ -28,7 +28,7 @@ def get_event_listing(logger, redis_client: Redis, lastfm_api_key, lastfm_api_se
     return CachedEventListing(
         logger=logger,
         event_listing=EventListing(
-            lastfm_api=LastFmApi(lastfm_api_key=lastfm_api_key, lastfm_api_secret=lastfm_api_secret),
+            lastfm_api=LastFmApi(logger=logger, lastfm_api_key=lastfm_api_key, lastfm_api_secret=lastfm_api_secret),
             songkick_api= SongkickApi(),
         ),
         redis_client=redis_client

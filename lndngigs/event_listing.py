@@ -24,7 +24,8 @@ class EventListingInterface:
 
 
 class LastFmApi:
-    def __init__(self, lastfm_api_key, lastfm_api_secret):
+    def __init__(self, logger, lastfm_api_key, lastfm_api_secret):
+        self._logger = logger
         self._lastfm = pylast.LastFMNetwork(
             api_key=lastfm_api_key,
             api_secret=lastfm_api_secret
@@ -32,9 +33,11 @@ class LastFmApi:
 
     def artist_tags(self, artist_name):
         try:
+            self._logger.debug("Retrieving tags for `{}`".format(artist_name))
             return [str(tag.item) for tag in self._lastfm.get_artist(artist_name).get_top_tags(limit=10)]
         except pylast.WSError as ex:
             if ex.status == '6':
+                self._logger.debug("Artist not found on lastfm: `{}`".format(artist_name))
                 # Status returned when the artists couldn't be found
                 # http://www.last.fm/api/errorcodes
                 return []
@@ -138,10 +141,7 @@ async def fetch(url, session):
 
 async def fetch_urls(func, urls):
     async with ClientSession() as session:
-        tasks = [
-            asyncio.ensure_future(fetch(url, session))
-            for url in urls
-        ]
+        tasks = [fetch(url, session) for url in urls]
 
         return [
             func(url, response)
@@ -192,15 +192,14 @@ class AsyncSongkickApi(EventListingInterface):
 
         return event_urls, page_urls
 
-    def scrape_event_urls(self, url):
+    async def scrape_event_urls(self, url):
         scraped = set()
         discovered = {url}
         all_event_urls = []
         
         while discovered:
             # Scrape the discovered pages
-            url_fetcher = fetch_urls(self.parse_event_listing_page, discovered)
-            for event_urls, page_urls in self._event_loop.run_until_complete(url_fetcher):
+            for event_urls, page_urls in await fetch_urls(self.parse_event_listing_page, discovered):
                 # Adds the discovered to the scraped set
                 scraped |= set(discovered)
                 discovered = {
@@ -212,11 +211,13 @@ class AsyncSongkickApi(EventListingInterface):
 
         return all_event_urls
 
-    def get_events(self, location, events_date):
+    async def get_async_events(self, location, events_date):
         first_page_url = SongkickApi.get_events_listing_url(location, events_date)
-        return self._event_loop.run_until_complete(
-            fetch_urls(self.parse_event_page, self.scrape_event_urls(first_page_url))
-        )
+        event_urls = await self.scrape_event_urls(first_page_url)
+        return await fetch_urls(self.parse_event_page, event_urls)
+
+    def get_events(self, location, events_date):
+        yield from self._event_loop.run_until_complete(self.get_async_events(location, events_date))
 
 
 class EventListing(EventListingInterface):
@@ -245,8 +246,37 @@ class EventListing(EventListingInterface):
         return self._songkick_api.parse_event_location(location)
 
 
+class AsyncEventListing(EventListingInterface):
+    def __init__(self, event_loop, songkick_api: AsyncSongkickApi, lastfm_api: LastFmApi):
+        self._event_loop = event_loop
+        self._songkick_api = songkick_api
+        self._lastfm_api = lastfm_api
+
+    async def async_get_events(self, location, events_date):
+        return [
+            EventWithTags(
+                link=event.link,
+                venue=event.venue,
+                artists=event.artists,
+                tags=await asyncio.gather(
+                    self._event_loop.run_in_executor(None, self._lastfm_api.artist_tags, event.artists)
+                )
+            )
+            for event in await self._songkick_api.get_async_events(location, events_date)
+        ]
+
+    def get_events(self, location, events_date):
+        return self._event_loop.run_until_complete(self.async_get_events(location, events_date))
+
+    def parse_event_date(self, date_str):
+        return self._songkick_api.parse_event_date(date_str)
+
+    def parse_event_location(self, location):
+        return self._songkick_api.parse_event_location(location)
+
+
 class CachedEventListing(EventListingInterface):
-    def __init__(self, logger, event_listing: EventListingInterface, redis_client: Redis, cache_ttl=timedelta(days=3)):
+    def __init__(self, logger, event_listing: EventListingInterface, redis_client: Redis, cache_ttl=timedelta(days=1)):
         self._logger = logger
         self._event_listing = event_listing
         self._redis_client = redis_client
