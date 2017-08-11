@@ -4,6 +4,7 @@ import pytest
 
 from lndngigs.event_listing import EventListing, LastFmApi, SongkickApi
 from lndngigs.async_event_listing import AsyncSongkickApi, AsyncEventListing
+from lndngigs.async_event_listing2 import AsyncEventListing2
 from lndngigs.factories import get_logger
 from lndngigs.utils import Config
 
@@ -76,11 +77,26 @@ def test_async_songkick_scraper(logger):
     assert len(list(events)) > 10  # At least 10 events in london on a saturday night
 
 
+@pytest.mark.skip()
 def test_async_event_listing(logger, lastfm_api: LastFmApi):
     event_loop = asyncio.get_event_loop()
     event_listing = AsyncEventListing(
         event_loop=event_loop,
         songkick_api=AsyncSongkickApi(logger=logger, event_loop=event_loop),
+        lastfm_api=lastfm_api
+    )
+    events = event_listing.get_events(
+        event_listing.parse_event_location("london"),
+        event_listing.parse_event_date("saturday")
+    )
+    assert len(list(events)) > 10  # At least 10 events in london on a saturday night
+
+
+def test_async_event_listing2(logger, lastfm_api: LastFmApi):
+    event_loop = asyncio.get_event_loop()
+    event_listing = AsyncEventListing2(
+        logger=logger,
+        event_loop=event_loop,
         lastfm_api=lastfm_api
     )
     events = event_listing.get_events(
