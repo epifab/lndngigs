@@ -1,10 +1,9 @@
 import argparse
-from datetime import date
 import sys
 
 import redis
 
-from lndngigs.event_listing import SongkickApi
+from lndngigs.event_listing import SongkickScraper
 from lndngigs.factories import get_logger, get_slack_bot
 from lndngigs.utils import Config
 
@@ -36,14 +35,14 @@ if __name__ == '__main__':
     parser.add_argument(
         '--location',
         dest='location',
-        default=SongkickApi.parse_event_location("london"),
-        type=SongkickApi.parse_event_location
+        default=SongkickScraper.parse_event_location("london"),
+        type=SongkickScraper.parse_event_location
     )
     parser.add_argument(
         '--date',
         dest='date',
-        default=SongkickApi.parse_event_date("today"),
-        type=SongkickApi.parse_event_date
+        default=SongkickScraper.parse_event_date("today"),
+        type=SongkickScraper.parse_event_date
     )
     parser.add_argument('--channel', dest='channel', default="#lndngigs")
 

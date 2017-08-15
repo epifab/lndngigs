@@ -2,8 +2,8 @@ import json
 from datetime import timedelta, date
 
 import pylast
-import robobrowser
 from redis import Redis
+from lxml import html
 
 from lndngigs.entities import EventWithTags, Event
 from lndngigs.utils import ValidationException, parse_date
@@ -41,14 +41,13 @@ class LastFmApi:
             raise
 
 
-class SongkickApi(EventListingInterface):
+class SongkickScraper:
     LOCATIONS = {
         "london": "24426-uk-london",
         "berlin": "28443-germany-berlin",
         "amsterdam": "31366-netherlands-amsterdam",
         "barcelona": "28714-spain-barcelona",
     }
-    USER_AGENT = "Mozilla/5.0 (Windows NT 6.2; Win64; x64; rv:21.0.0) Gecko/20121011 Firefox/21.0.0"
 
     @classmethod
     def parse_event_location(cls, location: str):
@@ -86,75 +85,42 @@ class SongkickApi(EventListingInterface):
             date_filters=date_filters
         )
 
-    def __init__(self):
-        self._browser = robobrowser.RoboBrowser(
-            parser="lxml",
-            user_agent=self.USER_AGENT,
-        )
+    @staticmethod
+    def parse_event_page(logger, url, content) -> Event:
+        logger.debug("Scraping event at {}".format(url))
+        tree = html.fromstring(content)
 
-    def _scrape_page_events(self):
-        for event in self._browser.select("ul.event-listings li"):
-            event_summary_element = event.select_one(".summary a")
-            if not event_summary_element:
-                # Will skip every non-event item in the list
-                continue
+        artists = [
+            element.text.strip()
+            for element in tree.cssselect(".line-up a")
+            if "href" in element.attrib and element.attrib["href"].startswith("/artists/")
+        ]
 
-            event_link = "https://www.songkick.com{}".format(event_summary_element.get("href"))
-            event_artists = [artist.strip() for artist in event_summary_element.select_one("strong").get_text().split(",")]
+        venue = ",".join([
+            element.text.strip()
+            for element in tree.cssselect(".location a")
+            if element.attrib["href"].startswith("/venues/")
+        ]) or "?"
 
-            try:
-                event_venue = event.select_one(".venue-name a").get_text()
-            except AttributeError:
-                event_venue = "?"
+        return Event(link=url, artists=artists, venue=venue)
 
-            yield Event(
-                link=event_link,
-                artists=event_artists,
-                venue=event_venue,
-            )
+    @staticmethod
+    def parse_event_listing_page(logger, url, content):
+        logger.debug("Scraping event listing at {}".format(url))
+        tree = html.fromstring(content)
 
-    def get_events(self, location, events_date):
-        url = self.get_events_listing_url(location, events_date)
+        event_urls = {
+            "http://www.songkick.com{}".format(element.attrib["href"])
+            for element in tree.cssselect(".event-listings a")
+            if element.attrib["href"].startswith("/concerts/")
+        }
 
-        self._browser.open(url)
+        page_urls = {
+            "http://www.songkick.com{}".format(element.attrib["href"])
+            for element in tree.cssselect(".pagination a")
+        }
 
-        # Scrape the first page
-        yield from self._scrape_page_events()
-
-        while True:
-            try:
-                next_page_link = next(iter(self._browser.select(".pagination a.next_page")))
-            except StopIteration:
-                break
-            else:
-                self._browser.follow_link(next_page_link)
-                yield from self._scrape_page_events()
-
-
-class EventListing(EventListingInterface):
-    def __init__(self, songkick_api: SongkickApi, lastfm_api: LastFmApi):
-        self._songkick_api = songkick_api
-        self._lastfm_api = lastfm_api
-
-    def get_events(self, location, events_date):
-        # Retrieve events
-        for event in self._songkick_api.get_events(location=location, events_date=events_date):
-            yield EventWithTags(
-                link=event.link,
-                artists=event.artists,
-                venue=event.venue,
-                tags=[
-                    item
-                    for sublist in (self._lastfm_api.artist_tags(artist_name) for artist_name in event.artists)
-                    for item in sublist
-                ]
-            )
-
-    def parse_event_date(self, date_str):
-        return self._songkick_api.parse_event_date(date_str)
-
-    def parse_event_location(self, location):
-        return self._songkick_api.parse_event_location(location)
+        return event_urls, page_urls
 
 
 class CachedEventListing(EventListingInterface):

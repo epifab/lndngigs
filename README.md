@@ -3,13 +3,20 @@
 _GIGS IN YOUR CITY_  
 
 
+*This is an experimental project aimed to learn and experiment with different technologies.   
+The use of this source code is intended for learning purposes only.*  
 
-## Run the application
 
-The application exposes a Slack slash command endpoint: https://api.slack.com/slash-commands.  
-When the Slack app is properly installed and configured on your slack team, a slack bot will respond to `/gigs` commands.  
+The application aggregates and caches events happening on a specific date in a specific location and exposes endpoints to retrieve them.
 
-This is the default entrypoint of the application.
+
+## Slack integration
+
+_lndnGigs_ integrates with Slack by implementing a [slash command](https://api.slack.com/slash-commands) endpoint available at `/slack/gigs`.  
+Further instruction about installing and configuring a Slack application can be found at https://api.slack.com/slack-apps  
+
+
+## Run using Docker
 
 ```bash
 docker-compose run \
