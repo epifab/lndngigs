@@ -96,6 +96,14 @@ class SongkickScraper:
             if "href" in element.attrib and element.attrib["href"].startswith("/artists/")
         ]
 
+        if not artists:
+            # Sometimes the line-up is missing, let's try to get them from the summary
+            artists = [
+                element.text.strip()
+                for element in tree.cssselect(".summary a")
+                if "href" in element.attrib and element.attrib["href"].startswith("/artists/")
+            ]
+
         venue = ",".join([
             element.text.strip()
             for element in tree.cssselect(".location a")
