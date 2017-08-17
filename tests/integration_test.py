@@ -1,8 +1,11 @@
 import asyncio
+import json
 from contextlib import contextmanager
 
 import pytest
 import time
+
+from flask.testing import FlaskClient
 
 from lndngigs.event_listing import LastFmApi
 from lndngigs.event_listingv1 import EventListing1
@@ -10,6 +13,7 @@ from lndngigs.event_listingv2 import AsyncSongkickApi, EventListing2
 from lndngigs.event_listingv3 import EventListing3
 from lndngigs.factories import get_logger
 from lndngigs.utils import Config
+from lndngigs.web import build_app
 
 
 @contextmanager
@@ -17,6 +21,7 @@ def timer():
     start = time.time()
     yield
     print("Elapsed: {}".format(time.time() - start))
+
 
 @pytest.fixture()
 def logger():
@@ -31,6 +36,11 @@ def config():
 @pytest.fixture()
 def lastfm_api(config, logger):
     return LastFmApi(logger=logger, lastfm_api_key=config.LASTFM_API_KEY, lastfm_api_secret=config.LASTFM_API_SECRET)
+
+
+@pytest.fixture()
+def flask_client(config, logger):
+    return build_app(config, logger).test_client()
 
 
 def test_lastfm_api(lastfm_api: LastFmApi):
@@ -70,6 +80,7 @@ def test_event_listingv2(logger, lastfm_api: LastFmApi):
         assert len(list(events)) > 10  # At least 10 events in london on a saturday night
 
 
+@pytest.mark.skip()
 def test_event_listing3(logger, lastfm_api: LastFmApi):
     with timer():
         event_loop = asyncio.get_event_loop()
@@ -83,3 +94,16 @@ def test_event_listing3(logger, lastfm_api: LastFmApi):
             event_listing.parse_event_date("saturday")
         )
         assert len(list(events)) > 10  # At least 10 events in london on a saturday night
+
+
+def test_index_endpoint(flask_client: FlaskClient):
+    response = flask_client.get("/")
+    assert response.status_code == 200
+
+
+def test_gigs_endpoint(flask_client: FlaskClient):
+    response = flask_client.get("/gigs/london/saturday")
+    assert response.status_code == 200
+    json_response = json.loads(response.data.decode("utf-8"))
+    assert "events" in json_response
+    assert len(json_response["events"]) > 10
