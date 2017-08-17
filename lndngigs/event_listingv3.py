@@ -9,7 +9,7 @@ from lndngigs.event_listing import EventListingInterface, LastFmApi, SongkickScr
 async def fetch_url(url):
     async with ClientSession() as session:
         async with session.get(url) as response:
-            return await response.read()
+            return (await response.read()).decode("utf-8")
 
 
 class EventListing3(SongkickScraper, EventListingInterface):

@@ -107,3 +107,14 @@ def test_gigs_endpoint(flask_client: FlaskClient):
     json_response = json.loads(response.data.decode("utf-8"))
     assert "events" in json_response
     assert len(json_response["events"]) > 10
+
+
+def test_event_listing_with_utf8(logger, lastfm_api: LastFmApi):
+    event_loop = asyncio.get_event_loop()
+    event_listing = EventListing3(
+        logger=logger,
+        event_loop=event_loop,
+        lastfm_api=lastfm_api
+    )
+    event = event_loop.run_until_complete(event_listing.scrape_event("http://www.songkick.com/concerts/30913429-robag-wruhme-at-oval-space"))
+    assert "Die Vögel" in event.artists
