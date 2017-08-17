@@ -63,9 +63,6 @@ def build_app(config, logger):
     return app
 
 
-if __name__ == '__main__':
+if __name__ == 'lndngigs.web':
     config = Config()
-    build_app(config=config, logger=get_logger(config.DEBUG)).run(
-        host="0.0.0.0",
-        port=int(os.getenv('PORT', 5000))
-    )
+    app = build_app(config=config, logger=get_logger(config.DEBUG))
