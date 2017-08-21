@@ -5,6 +5,7 @@ from contextlib import contextmanager
 import pytest
 import time
 
+from datetime import date
 from flask.testing import FlaskClient
 
 from lndngigs.event_listing import LastFmApi
@@ -53,7 +54,6 @@ def test_lastfm_api_with_unknown_artist(lastfm_api: LastFmApi):
     assert len(tags) == 0
 
 
-@pytest.mark.skip()
 def test_event_listingv1(lastfm_api):
     with timer():
         event_listing = EventListing1(lastfm_api)
@@ -64,7 +64,6 @@ def test_event_listingv1(lastfm_api):
         assert len(list(events)) > 0
 
 
-@pytest.mark.skip()
 def test_event_listingv2(logger, lastfm_api: LastFmApi):
     with timer():
         event_loop = asyncio.get_event_loop()
@@ -80,8 +79,7 @@ def test_event_listingv2(logger, lastfm_api: LastFmApi):
         assert len(list(events)) > 10  # At least 10 events in london on a saturday night
 
 
-@pytest.mark.skip()
-def test_event_listing3(logger, lastfm_api: LastFmApi):
+def test_event_listingv3(logger, lastfm_api: LastFmApi):
     with timer():
         event_loop = asyncio.get_event_loop()
         event_listing = EventListing3(
@@ -116,5 +114,8 @@ def test_event_listing_with_utf8(logger, lastfm_api: LastFmApi):
         event_loop=event_loop,
         lastfm_api=lastfm_api
     )
-    event = event_loop.run_until_complete(event_listing.scrape_event("http://www.songkick.com/concerts/30913429-robag-wruhme-at-oval-space"))
+    event = event_loop.run_until_complete(event_listing.scrape_event(
+        date.today(),
+        "http://www.songkick.com/concerts/30913429-robag-wruhme-at-oval-space"
+    ))
     assert "Die Vögel" in event.artists

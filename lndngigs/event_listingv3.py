@@ -18,7 +18,7 @@ class EventListing3(SongkickScraper, EventListingInterface):
         self._event_loop = event_loop
         self._lastfm_api = lastfm_api
 
-    async def scrape_event(self, url):
+    async def scrape_event(self, events_date, url):
         event = self.parse_event_page(self._logger, url, await fetch_url(url))
 
         tags_tasks = [
@@ -30,6 +30,7 @@ class EventListing3(SongkickScraper, EventListingInterface):
             link=event.link,
             artists=event.artists,
             venue=event.venue,
+            date=events_date,
             tags=[
                 tags
                 for tags_list in await asyncio.gather(*tags_tasks)  # list of lists
@@ -37,17 +38,17 @@ class EventListing3(SongkickScraper, EventListingInterface):
             ]
         )
 
-    async def scrape_event_listing_page(self, url):
+    async def scrape_event_listing_page(self, events_date, url):
         event_urls, page_urls = self.parse_event_listing_page(self._logger, url, await fetch_url(url))
-        return await asyncio.gather(*[self.scrape_event(url) for url in event_urls]), page_urls
+        return await asyncio.gather(*[self.scrape_event(events_date, url) for url in event_urls]), page_urls
 
-    async def scrape_events(self, url):
+    async def scrape_events(self, events_date, url):
         scraped_page_urls = set()
         discovered_page_urls = {url}
         all_events = []
 
         while discovered_page_urls:
-            scraping_tasks = [self.scrape_event_listing_page(url) for url in discovered_page_urls]
+            scraping_tasks = [self.scrape_event_listing_page(events_date, url) for url in discovered_page_urls]
 
             # Scrape the discovered pages
             for page_events, new_page_urls in await asyncio.gather(*scraping_tasks):
@@ -64,5 +65,5 @@ class EventListing3(SongkickScraper, EventListingInterface):
 
     def get_events(self, location, events_date):
         yield from self._event_loop.run_until_complete(
-            self.scrape_events(self.get_events_listing_url(location, events_date))
+            self.scrape_events(events_date, self.get_events_listing_url(location, events_date))
         )

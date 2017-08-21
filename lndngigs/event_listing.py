@@ -157,6 +157,7 @@ class CachedEventListing(EventListingInterface):
                 link=event_with_tags["link"],
                 artists=event_with_tags["artists"],
                 venue=event_with_tags["venue"],
+                date=events_date,
                 tags=event_with_tags["tags"],
             )
             for event_with_tags in json.loads(event_json)
@@ -167,12 +168,7 @@ class CachedEventListing(EventListingInterface):
         self._redis_client.setex(
             name=key_name,
             value=json.dumps([
-                {
-                    "link": event.link,
-                    "artists": event.artists,
-                    "venue": event.venue,
-                    "tags": event.tags
-                }
+                event.to_dict()
                 for event in events_with_tags
             ]).encode("utf-8"),
             time=self._cache_ttl

@@ -70,6 +70,7 @@ class EventListing2(EventListingInterface):
                 link=event.link,
                 venue=event.venue,
                 artists=event.artists,
+                date=events_date,
                 tags=[
                     tags
                     for tags_list in await asyncio.gather(*[

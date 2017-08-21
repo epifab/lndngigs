@@ -14,7 +14,7 @@ class EventListing1(SongkickScraper, EventListingInterface):
         )
         self._lastfm_api = lastfm_api
 
-    def _scrape_page_events(self):
+    def _scrape_page_events(self, events_date):
         for event in self._browser.select("ul.event-listings li"):
             event_summary_element = event.select_one(".summary a")
             if not event_summary_element:
@@ -33,6 +33,7 @@ class EventListing1(SongkickScraper, EventListingInterface):
                 link=event_link,
                 artists=event_artists,
                 venue=event_venue,
+                date=events_date,
                 tags=[
                     tag
                     for tags in (self._lastfm_api.artist_tags(artist_name) for artist_name in event_artists)
@@ -46,7 +47,7 @@ class EventListing1(SongkickScraper, EventListingInterface):
         self._browser.open(url)
 
         # Scrape the first page
-        yield from self._scrape_page_events()
+        yield from self._scrape_page_events(events_date)
 
         while True:
             try:
@@ -55,4 +56,4 @@ class EventListing1(SongkickScraper, EventListingInterface):
                 break
             else:
                 self._browser.follow_link(next_page_link)
-                yield from self._scrape_page_events()
+                yield from self._scrape_page_events(events_date)
