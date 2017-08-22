@@ -34,7 +34,7 @@ def parse_date(date_str):
                 while day.weekday() != weekday_index:
                     day += timedelta(days=1)
                 return day
-        return datetime.strptime(date_str, '%d-%m-%Y').date()
+        return datetime.strptime(date_str, '%Y-%m-%d').date()
 
 
 class Config:
