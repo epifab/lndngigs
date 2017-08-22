@@ -42,7 +42,7 @@ def build_app(config, logger):
             for event in event_listing.get_events(location=parsed_location, events_date=parsed_events_date)
         ]
 
-        return jsonify({"events": events}), 200
+        return jsonify({"gigs": events}), 200
 
     @app.route("/slack/gigs", methods=['POST'])
     def slack_gigs():

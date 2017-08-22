@@ -104,7 +104,7 @@ def test_gigs_endpoint(flask_client: FlaskClient):
     assert response.status_code == 200
     json_response = json.loads(response.data.decode("utf-8"))
     assert "events" in json_response
-    assert len(json_response["events"]) > 10
+    assert len(json_response["gigs"]) > 10
 
 
 def test_event_listing_with_utf8(logger, lastfm_api: LastFmApi):
