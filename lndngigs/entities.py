@@ -9,6 +9,6 @@ class EventWithTags(namedtuple("EventWithTags", ["link", "artists", "venue", "da
             "link": self.link,
             "artists": self.artists,
             "venue": self.venue,
-            "date": self.date,
+            "date": self.date.strftime('%Y-%m-%d'),
             "tags": self.tags
         }
