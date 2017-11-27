@@ -2,7 +2,7 @@ import asyncio
 
 from aiohttp import ClientSession
 
-from lndngigs.entities import EventWithTags
+from lndngigs.entities import Event, Artist
 from lndngigs.event_listing import EventListingInterface, LastFmApi, SongkickScraper
 
 
@@ -12,30 +12,31 @@ async def fetch_url(url):
             return (await response.read()).decode("utf-8")
 
 
-class EventListing3(SongkickScraper, EventListingInterface):
+class AsyncEventListing(SongkickScraper, EventListingInterface):
     def __init__(self, logger, event_loop, lastfm_api: LastFmApi):
         self._logger = logger
         self._event_loop = event_loop
         self._lastfm_api = lastfm_api
 
     async def scrape_event(self, events_date, url):
-        event = self.parse_event_page(self._logger, url, await fetch_url(url))
+        event = self.parse_event_page(self._logger, url, await fetch_url(url), events_date)
 
-        tags_tasks = [
-            self._event_loop.run_in_executor(None, self._lastfm_api.artist_tags, artist)
-            for artist in event.artists
+        async def get_artist(artist_name):
+            return Artist(
+                tags = await self._event_loop.run_in_executor(None, self._lastfm_api.artist_tags, artist_name),
+                name = artist_name
+            )
+
+        future_artists = [
+            get_artist(artist_name)
+            for artist_name in event.artists
         ]
 
-        return EventWithTags(
+        return Event(
             link=event.link,
-            artists=event.artists,
+            artists=await asyncio.gather(*future_artists),
             venue=event.venue,
-            date=events_date,
-            tags=[
-                tags
-                for tags_list in await asyncio.gather(*tags_tasks)  # list of lists
-                for tags in tags_list
-            ]
+            date=events_date
         )
 
     async def scrape_event_listing_page(self, events_date, url):

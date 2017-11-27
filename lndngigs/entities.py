@@ -1,14 +1,19 @@
 from collections import namedtuple
 
-Event = namedtuple("Event", ["link", "artists", "venue"])
 
-
-class EventWithTags(namedtuple("EventWithTags", ["link", "artists", "venue", "date", "tags"])):
+class Event(namedtuple("Event", ["link", "artists", "venue", "date"])):
     def to_dict(self):
         return {
             "link": self.link,
-            "artists": self.artists,
+            "artists": [artist.to_dict() for artist in self.artists],
             "venue": self.venue,
             "date": self.date.strftime('%Y-%m-%d'),
+        }
+
+
+class Artist(namedtuple("Artist", ["name", "tags"])):
+    def to_dict(self):
+        return {
+            "name": self.name,
             "tags": self.tags
         }

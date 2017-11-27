@@ -5,7 +5,7 @@ import pylast
 from redis import Redis
 from lxml import html
 
-from lndngigs.entities import EventWithTags, Event
+from lndngigs.entities import Event
 from lndngigs.utils import ValidationException, parse_date
 
 
@@ -86,7 +86,7 @@ class SongkickScraper:
         )
 
     @staticmethod
-    def parse_event_page(logger, url, content) -> Event:
+    def parse_event_page(logger, url, content, events_date) -> Event:
         logger.debug("Scraping event at {}".format(url))
         tree = html.fromstring(content)
 
@@ -110,7 +110,7 @@ class SongkickScraper:
             if element.attrib["href"].startswith("/venues/")
         ]) or "?"
 
-        return Event(link=url, artists=artists, venue=venue)
+        return Event(link=url, artists=artists, venue=venue, date=events_date)
 
     @staticmethod
     def parse_event_listing_page(logger, url, content):
@@ -153,14 +153,13 @@ class CachedEventListing(EventListingInterface):
         event_json = self._redis_client.get(key_name).decode("utf-8")
 
         return [
-            EventWithTags(
-                link=event_with_tags["link"],
-                artists=event_with_tags["artists"],
-                venue=event_with_tags["venue"],
-                date=events_date,
-                tags=event_with_tags["tags"],
+            Event(
+                link=event["link"],
+                artists=event["artists"],
+                venue=event["venue"],
+                date=events_date
             )
-            for event_with_tags in json.loads(event_json)
+            for event in json.loads(event_json)
         ]
 
     def cache_events(self, location, events_date, events_with_tags):

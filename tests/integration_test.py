@@ -9,9 +9,7 @@ from datetime import date
 from flask.testing import FlaskClient
 
 from lndngigs.event_listing import LastFmApi
-from lndngigs.event_listingv1 import EventListing1
-from lndngigs.event_listingv2 import AsyncSongkickApi, EventListing2
-from lndngigs.event_listingv3 import EventListing3
+from lndngigs.event_listingv3 import AsyncEventListing
 from lndngigs.factories import get_logger
 from lndngigs.utils import Config
 from lndngigs.web import build_app
@@ -54,35 +52,10 @@ def test_lastfm_api_with_unknown_artist(lastfm_api: LastFmApi):
     assert len(tags) == 0
 
 
-def test_event_listingv1(lastfm_api):
-    with timer():
-        event_listing = EventListing1(lastfm_api)
-        events = event_listing.get_events(
-            location=event_listing.parse_event_location("london"),
-            events_date=event_listing.parse_event_date("monday")
-        )
-        assert len(list(events)) > 0
-
-
-def test_event_listingv2(logger, lastfm_api: LastFmApi):
-    with timer():
-        event_loop = asyncio.get_event_loop()
-        event_listing = EventListing2(
-            event_loop=event_loop,
-            songkick_api=AsyncSongkickApi(logger=logger, event_loop=event_loop),
-            lastfm_api=lastfm_api
-        )
-        events = event_listing.get_events(
-            event_listing.parse_event_location("london"),
-            event_listing.parse_event_date("saturday")
-        )
-        assert len(list(events)) > 10  # At least 10 events in london on a saturday night
-
-
 def test_event_listingv3(logger, lastfm_api: LastFmApi):
     with timer():
         event_loop = asyncio.get_event_loop()
-        event_listing = EventListing3(
+        event_listing = AsyncEventListing(
             logger=logger,
             event_loop=event_loop,
             lastfm_api=lastfm_api
@@ -103,13 +76,13 @@ def test_gigs_endpoint(flask_client: FlaskClient):
     response = flask_client.get("/gigs/london/saturday")
     assert response.status_code == 200
     json_response = json.loads(response.data.decode("utf-8"))
-    assert "events" in json_response
+    assert "gigs" in json_response
     assert len(json_response["gigs"]) > 10
 
 
 def test_event_listing_with_utf8(logger, lastfm_api: LastFmApi):
     event_loop = asyncio.get_event_loop()
-    event_listing = EventListing3(
+    event_listing = AsyncEventListing(
         logger=logger,
         event_loop=event_loop,
         lastfm_api=lastfm_api
@@ -118,4 +91,4 @@ def test_event_listing_with_utf8(logger, lastfm_api: LastFmApi):
         date.today(),
         "http://www.songkick.com/concerts/30913429-robag-wruhme-at-oval-space"
     ))
-    assert "Die Vögel" in event.artists
+    assert "Die Vögel" in [artist.name for artist in event.artists]

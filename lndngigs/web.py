@@ -1,5 +1,3 @@
-import os
-
 import redis
 from flask import Flask, request, jsonify
 
@@ -19,7 +17,6 @@ def build_app(config, logger):
     def gigs(location, events_date):
         event_listing = get_event_listing(
             logger=logger,
-            redis_client=redis.from_url(config.REDIS_URL),
             lastfm_api_key=config.LASTFM_API_KEY,
             lastfm_api_secret=config.LASTFM_API_SECRET
         )

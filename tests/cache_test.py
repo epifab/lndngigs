@@ -10,7 +10,7 @@ import redis
 
 from lndngigs.event_listing import CachedEventListing
 from lndngigs.utils import CommandMessagesQueue
-from lndngigs.entities import EventWithTags
+from lndngigs.entities import Artist, Event
 
 
 class EventListingMock():
@@ -42,20 +42,23 @@ def redis_client():
 
 def test_cached_events_warms_up_and_hits_the_cache(event_listing_mock, redis_client):
     events1 = [
-        EventWithTags(
-            artists=["Radiohead"],
+        Event(
+            artists=[Artist("Radiohead", ["Rock", "Awesome", "Thom Yorke"])],
             venue="Roundhouse",
-            link="http://doesnt-really-matter.com/radiohead-at-roundhouse",
-            tags=["Rock", "Awesome", "Thom Yorke"],
+            link="http://doesnt-really-matter.com/radiohead-at-roundhouse"
         )
     ]
 
     events2 = events1 + [
-        EventWithTags(
-            artists=["Black Sabbath", "Soundgarden", "Faith No More", "Motorhead"],
+        Event(
+            artists=[
+                Artist("Black Sabbath", ["Heavy"]),
+                Artist("Soundgarden", ["Grunge", "Hard Rock", "Legendary"]),
+                Artist("Faith No More", []),
+                Artist("Motorhead", [])
+            ],
             venue="Hyde Park",
-            link="http://doesnt-really-matter.com/british-summer-time-2015",
-            tags=["Heavy", "Grunge", "Hard rock", "Legendary"]
+            link="http://doesnt-really-matter.com/british-summer-time-2015"
         )
     ]
 
