@@ -1,6 +1,6 @@
 from slackclient import SlackClient
 
-from lndngigs.entities import EventWithTags
+from lndngigs.entities import Event
 from lndngigs.utils import ValidationException
 from lndngigs.event_listing import EventListingInterface
 
@@ -21,11 +21,11 @@ class SlackBot:
         self._logger = logger
         self._event_listing = event_listing
 
-    def event_message(self, event: EventWithTags):
+    def event_message(self, event: Event):
         return "> _Artists_: {artists}\n> _Venue_: {venue}\n> _Tags_: {tags}\n> {link}".format(
             artists=", ".join(event.artists),
             venue=event.venue,
-            tags=", ".join(event.tags),
+            tags=", ".join([tag for artist in event.artists for tag in artist.tags]),
             # this will prevent from display an event preview which is annoying when there are a lot of events
             link=event.link.replace("http://", "").replace("https://", "") if event else "?"
         )
