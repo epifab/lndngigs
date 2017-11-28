@@ -9,7 +9,7 @@ if __name__ == '__main__':
 
     redis_client = redis.from_url(Config().REDIS_URL)
 
-    slack_bot = get_slack_bot(logger=logger, redis_client=redis_client, config=config)
+    slack_bot = get_slack_bot(logger=logger, config=config)
 
     queue = CommandMessagesQueue(redis_client=redis_client)
 
