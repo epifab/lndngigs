@@ -11,9 +11,10 @@ class Event(namedtuple("Event", ["link", "artists", "venue", "date"])):
         }
 
 
-class Artist(namedtuple("Artist", ["name", "tags"])):
+class Artist(namedtuple("Artist", ["name", "tags", "image_url"])):
     def to_dict(self):
         return {
             "name": self.name,
-            "tags": self.tags
+            "tags": self.tags,
+            "image_url": self.image_url
         }

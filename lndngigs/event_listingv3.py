@@ -24,6 +24,7 @@ class AsyncEventListing(SongkickScraper, EventListingInterface):
         async def get_artist(artist_name):
             return Artist(
                 tags = await self._event_loop.run_in_executor(None, self._lastfm_api.artist_tags, artist_name),
+                image_url = await self._event_loop.run_in_executor(None, self._lastfm_api.artist_image_url, artist_name),
                 name = artist_name
             )
 

@@ -43,7 +43,7 @@ def redis_client():
 def test_cached_events_warms_up_and_hits_the_cache(event_listing_mock, redis_client):
     events1 = [
         Event(
-            artists=[Artist("Radiohead", ["Rock", "Awesome", "Thom Yorke"])],
+            artists=[Artist("Radiohead", ["Rock", "Awesome", "Thom Yorke"], "http://lndngigs/radiohead.jpg")],
             venue="Roundhouse",
             link="http://doesnt-really-matter.com/radiohead-at-roundhouse"
         )
@@ -52,10 +52,10 @@ def test_cached_events_warms_up_and_hits_the_cache(event_listing_mock, redis_cli
     events2 = events1 + [
         Event(
             artists=[
-                Artist("Black Sabbath", ["Heavy"]),
-                Artist("Soundgarden", ["Grunge", "Hard Rock", "Legendary"]),
-                Artist("Faith No More", []),
-                Artist("Motorhead", [])
+                Artist("Black Sabbath", ["Heavy"], "http://lndngigs/black-sabbat.jpg"),
+                Artist("Soundgarden", ["Grunge", "Hard Rock", "Legendary"], "http://lndngigs/soundgarden.jpg"),
+                Artist("Faith No More", [], "http://lndngigs/faith-no-more.jpg"),
+                Artist("Motorhead", [], None)
             ],
             venue="Hyde Park",
             link="http://doesnt-really-matter.com/british-summer-time-2015"

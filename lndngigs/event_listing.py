@@ -2,6 +2,7 @@ import json
 from datetime import timedelta, date
 
 import pylast
+from pylast import COVER_LARGE
 from redis import Redis
 from lxml import html
 
@@ -38,6 +39,18 @@ class LastFmApi:
                 # Status returned when the artists couldn't be found
                 # http://www.last.fm/api/errorcodes
                 return []
+            raise
+
+    def artist_image_urls(self, artist_name):
+        try:
+            self._logger.debug("Retrieving tags for `{}`".format(artist_name))
+            return self._lastfm.get_artist(artist_name).get_cover_image(COVER_LARGE)
+        except pylast.WSError as ex:
+            if ex.status == '6':
+                self._logger.debug("Artist not found on lastfm: `{}`".format(artist_name))
+                # Status returned when the artists couldn't be found
+                # http://www.last.fm/api/errorcodes
+                return None
             raise
 
 
