@@ -7,6 +7,7 @@ import time
 
 from datetime import date
 from flask.testing import FlaskClient
+from pylast import COVER_SMALL, COVER_MEDIUM, COVER_LARGE, COVER_EXTRA_LARGE
 
 from lndngigs.event_listing import LastFmApi
 from lndngigs.event_listingv3 import AsyncEventListing
@@ -44,7 +45,9 @@ def flask_client(config, logger):
 
 def test_lastfm_api(lastfm_api: LastFmApi):
     tags = lastfm_api.artist_tags("radiohead")
+    images = lastfm_api.artist_image_url("radiohead")
     assert len(tags) == 10
+    assert images
 
 
 def test_lastfm_api_with_unknown_artist(lastfm_api: LastFmApi):

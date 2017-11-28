@@ -41,7 +41,7 @@ class LastFmApi:
                 return []
             raise
 
-    def artist_image_urls(self, artist_name):
+    def artist_image_url(self, artist_name):
         try:
             self._logger.debug("Retrieving tags for `{}`".format(artist_name))
             return self._lastfm.get_artist(artist_name).get_cover_image(COVER_LARGE)
