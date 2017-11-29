@@ -57,6 +57,7 @@ class LastFmApi:
 class SongkickScraper:
     LOCATIONS = {
         "london": "24426-uk-london",
+        "bristol": "24521-uk-bristol",
         "berlin": "28443-germany-berlin",
         "amsterdam": "31366-netherlands-amsterdam",
         "barcelona": "28714-spain-barcelona",
