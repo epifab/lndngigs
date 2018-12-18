@@ -2,7 +2,7 @@ import argparse
 import sys
 
 from lndngigs.event_listing import SongkickScraper
-from lndngigs.factories import get_logger, get_slack_bot
+from lndngigs.factories import get_logger, get_slack_bot, get_redis_client
 from lndngigs.utils import Config
 
 
@@ -16,7 +16,7 @@ def run(location, events_date, channel):
         channel=channel
     ))
 
-    bot = get_slack_bot(logger=logger, config=config)
+    bot = get_slack_bot(logger=logger, config=config, redis_client=get_redis_client(config))
 
     bot.post_events_command(
         location=location,

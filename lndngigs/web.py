@@ -1,11 +1,11 @@
 import redis
 from flask import Flask, request, jsonify
 
-from lndngigs.factories import get_logger, get_event_listing
+from lndngigs.factories import get_logger, get_event_listing, get_redis_client
 from lndngigs.utils import Config, CommandMessagesQueue, ValidationException
 
 
-def build_app(config, logger):
+def build_app(config, logger, redis_client):
     app = Flask(__name__)
 
     @app.route("/")
@@ -18,7 +18,8 @@ def build_app(config, logger):
         event_listing = get_event_listing(
             logger=logger,
             lastfm_api_key=config.LASTFM_API_KEY,
-            lastfm_api_secret=config.LASTFM_API_SECRET
+            lastfm_api_secret=config.LASTFM_API_SECRET,
+            redis_client=redis_client
         )
         try:
             parsed_location = event_listing.parse_event_location(location)
@@ -62,4 +63,4 @@ def build_app(config, logger):
 
 if __name__ == 'lndngigs.web':
     config = Config()
-    app = build_app(config=config, logger=get_logger(config.DEBUG))
+    app = build_app(config=config, logger=get_logger(config.DEBUG), redis_client=get_redis_client(config))

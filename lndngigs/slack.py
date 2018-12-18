@@ -23,7 +23,7 @@ class SlackBot:
 
     def event_message(self, event: Event):
         return "> _Artists_: {artists}\n> _Venue_: {venue}\n> _Tags_: {tags}\n> {link}".format(
-            artists=", ".join(event.artists),
+            artists=", ".join([artist.name for artist in event.artists]),
             venue=event.venue,
             tags=", ".join([tag for artist in event.artists for tag in artist.tags]),
             # this will prevent from display an event preview which is annoying when there are a lot of events
