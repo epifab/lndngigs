@@ -60,6 +60,7 @@ class SongkickScraper:
         "berlin": "28443-germany-berlin",
         "amsterdam": "31366-netherlands-amsterdam",
         "barcelona": "28714-spain-barcelona",
+        "bristol": "24521-uk-bristol"
     }
 
     @classmethod
