@@ -1,7 +1,5 @@
 # lndnGigs
 
-_GIGS IN YOUR CITY_  
-
 
 *This is an experimental project aimed to learn and experiment with different technologies.   
 The use of this source code is intended for learning purposes only.*  
@@ -23,6 +21,7 @@ docker-compose run \
  -e LASTFM_API_KEY=*** \
  -e LASTFM_API_SECRET=*** \
  -e SLACK_API_TOKEN=*** \
+ -e REDIS_URL=*** \
  lndngigs
 ```
 
@@ -33,7 +32,8 @@ docker-compose run \
  -e LASTFM_API_KEY=*** \
  -e LASTFM_API_SECRET=*** \
  -e SLACK_API_TOKEN=*** \
- --entrypoint "python -m lndngigs.run"
+ -e REDIS_URL=*** \
+ --entrypoint "python -m lndngigs.run" \
  lndngigs --channel=*** --location=*** --date=***
 ```
 
@@ -42,3 +42,10 @@ Ultimately, to run the tests:
 ```bash
 docker-compose run --entrypoint pytest lndngigs
 ```
+
+## Technical notes
+
+The scraping phase is made very fast thanks to the [asyncio library](https://docs.python.org/3/library/asyncio.html)
+
+Events are shamelessly scraped from Songkick, and artists information are enhanced by using the Lastfm API 
+and eventually cached in Redis.
