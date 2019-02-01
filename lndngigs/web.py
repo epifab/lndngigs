@@ -1,7 +1,7 @@
 import redis
 from flask import Flask, request, jsonify
 
-from lndngigs.factories import get_logger, get_event_listing, get_redis_client
+from lndngigs.factories import get_logger, get_event_listing, get_event_listing_lite, get_redis_client
 from lndngigs.utils import Config, CommandMessagesQueue, ValidationException
 
 
@@ -15,12 +15,19 @@ def build_app(config, logger, redis_client):
     @app.route("/gigs", defaults={"location": "london", "events_date": "today"})
     @app.route("/gigs/<location>/<events_date>", methods=['GET'])
     def gigs(location, events_date):
-        event_listing = get_event_listing(
-            logger=logger,
-            lastfm_api_key=config.LASTFM_API_KEY,
-            lastfm_api_secret=config.LASTFM_API_SECRET,
-            redis_client=redis_client
-        )
+        if request.args.get("mode") == "lite":
+            event_listing = get_event_listing_lite(
+                logger=logger,
+                redis_client=redis_client
+            )
+        else:
+            event_listing = get_event_listing(
+                logger=logger,
+                lastfm_api_key=config.LASTFM_API_KEY,
+                lastfm_api_secret=config.LASTFM_API_SECRET,
+                redis_client=redis_client
+            )
+
         try:
             parsed_location = event_listing.parse_event_location(location)
         except ValidationException as ex:

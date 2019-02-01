@@ -6,7 +6,7 @@ import redis
 from redis import Redis
 
 from lndngigs.event_listing import CachedEventListing, LastFmApi, EventListingInterface
-from lndngigs.event_listingv3 import AsyncEventListing
+from lndngigs.async_event_listing import AsyncEventListing, AsyncEventListingLite
 from lndngigs.slack import SlackBot
 from lndngigs.utils import Config
 
@@ -35,9 +35,21 @@ def get_event_listing(logger, lastfm_api_key, lastfm_api_secret, redis_client: R
             event_loop=asyncio.get_event_loop(),
             lastfm_api=LastFmApi(logger=logger, lastfm_api_key=lastfm_api_key, lastfm_api_secret=lastfm_api_secret),
         ),
-        redis_client=redis_client
+        redis_client=redis_client,
+        cache_key_prefix="events"
     )
 
+
+def get_event_listing_lite(logger, redis_client: Redis) -> EventListingInterface:
+    return CachedEventListing(
+        logger=logger,
+        event_listing=AsyncEventListingLite(
+            logger=logger,
+            event_loop=asyncio.get_event_loop()
+        ),
+        redis_client=redis_client,
+        cache_key_prefix="events-lite"
+    )
 
 def get_slack_bot(logger, config: Config, redis_client: Redis) -> SlackBot:
     return SlackBot(

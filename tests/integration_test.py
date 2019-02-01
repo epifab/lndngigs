@@ -10,7 +10,7 @@ from flask.testing import FlaskClient
 from pylast import COVER_SMALL, COVER_MEDIUM, COVER_LARGE, COVER_EXTRA_LARGE
 
 from lndngigs.event_listing import LastFmApi
-from lndngigs.event_listingv3 import AsyncEventListing
+from lndngigs.async_event_listing import AsyncEventListing
 from lndngigs.factories import get_logger
 from lndngigs.utils import Config
 from lndngigs.web import build_app

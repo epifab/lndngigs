@@ -147,14 +147,15 @@ class SongkickScraper:
 
 
 class CachedEventListing(EventListingInterface):
-    def __init__(self, logger, event_listing: EventListingInterface, redis_client: Redis, cache_ttl=timedelta(days=1)):
+    def __init__(self, logger, event_listing: EventListingInterface, redis_client: Redis, cache_key_prefix: str, cache_ttl=timedelta(days=1)):
         self._logger = logger
         self._event_listing = event_listing
         self._redis_client = redis_client
+        self._cache_key_prefix = cache_key_prefix
         self._cache_ttl = cache_ttl
 
     def get_cache_key_name(self, location, events_date):
-        return "events:{}:{}".format(location, events_date)
+        return "{}:{}:{}".format(self._cache_key_prefix, location, events_date)
 
     def get_cached_events(self, location, events_date):
         key_name = self.get_cache_key_name(location, events_date)

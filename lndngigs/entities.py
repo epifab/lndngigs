@@ -18,3 +18,10 @@ class Artist(namedtuple("Artist", ["name", "tags", "image_url"])):
             "tags": self.tags,
             "image_url": self.image_url
         }
+
+
+class ArtistLite(namedtuple("ArtistLite", ["name"])):
+    def to_dict(self):
+        return {
+            "name": self.name
+        }
