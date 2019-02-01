@@ -6,7 +6,7 @@ from pylast import COVER_MEDIUM
 from redis import Redis
 from lxml import html
 
-from lndngigs.entities import Event, Artist
+from lndngigs.entities import Event, Artist, ArtistLite
 from lndngigs.utils import ValidationException, parse_date
 
 
@@ -168,11 +168,17 @@ class CachedEventListing(EventListingInterface):
 
         event_json = self._redis_client.get(key_name).decode("utf-8")
 
+        def parse_artist(artist):
+            try:
+                return Artist(artist["name"], artist["tags"], artist["image_url"])
+            except KeyError:
+                return ArtistLite(artist["name"])
+
         return [
             Event(
                 link=event["link"],
                 artists=[
-                    Artist(artist["name"], artist["tags"], artist["image_url"])
+                    parse_artist(artist)
                     for artist in event["artists"]
                 ],
                 venue=event["venue"],
