@@ -6,7 +6,7 @@ from pylast import COVER_MEDIUM
 from redis import Redis
 from lxml import html
 
-from lndngigs.entities import Event, Artist, ArtistLite
+from lndngigs.entities import Event, Venue, Artist, ArtistLite
 from lndngigs.utils import ValidationException, parse_date
 
 
@@ -119,13 +119,19 @@ class SongkickScraper:
                 if "href" in element.attrib and element.attrib["href"].startswith("/artists/")
             ]
 
-        venue = ",".join([
+        venue_name = ",".join([
             element.text.strip()
             for element in tree.cssselect(".location a")
             if element.attrib["href"].startswith("/venues/")
         ]) or "?"
 
-        return Event(link=url, artists=artists, venue=venue, date=events_date)
+        venue_address = ", ".join([
+            element.text.strip()
+            for element in tree.cssselect("p.venue-hcard span")
+            if element.text is not None and element.text.strip() != ""
+        ][:3])
+
+        return Event(link=url, artists=artists, venue=Venue(venue_name, venue_address), date=events_date)
 
     @staticmethod
     def parse_event_listing_page(logger, url, content):
@@ -174,6 +180,9 @@ class CachedEventListing(EventListingInterface):
             except KeyError:
                 return ArtistLite(artist["name"])
 
+        def parse_venue(venue):
+            return Venue(venue, "") if type(venue) == str else Venue(venue["name"], venue["address"])
+
         return [
             Event(
                 link=event["link"],
@@ -181,7 +190,7 @@ class CachedEventListing(EventListingInterface):
                     parse_artist(artist)
                     for artist in event["artists"]
                 ],
-                venue=event["venue"],
+                venue=parse_venue(event["venue"]),
                 date=events_date
             )
             for event in json.loads(event_json)

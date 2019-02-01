@@ -6,8 +6,16 @@ class Event(namedtuple("Event", ["link", "artists", "venue", "date"])):
         return {
             "link": self.link,
             "artists": [artist.to_dict() for artist in self.artists],
-            "venue": self.venue,
+            "venue": self.venue.to_dict(),
             "date": self.date.strftime('%Y-%m-%d'),
+        }
+
+
+class Venue(namedtuple("Venue", ["name", "address"])):
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "address": self.address
         }
 
 

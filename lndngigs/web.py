@@ -1,7 +1,7 @@
 import redis
 from flask import Flask, request, jsonify
 
-from lndngigs.factories import get_logger, get_event_listing, get_event_listing_lite, get_redis_client
+from lndngigs.factories import *
 from lndngigs.utils import Config, CommandMessagesQueue, ValidationException
 
 
@@ -15,11 +15,15 @@ def build_app(config, logger, redis_client):
     @app.route("/gigs", defaults={"location": "london", "events_date": "today"})
     @app.route("/gigs/<location>/<events_date>", methods=['GET'])
     def gigs(location, events_date):
-        if request.args.get("mode") == "lite":
+        if request.args.get("mode") == "lite-nocache":
+            event_listing = get_event_listing_lite_no_cache(logger=logger)
+
+        elif request.args.get("mode") == "lite":
             event_listing = get_event_listing_lite(
                 logger=logger,
                 redis_client=redis_client
             )
+
         else:
             event_listing = get_event_listing(
                 logger=logger,

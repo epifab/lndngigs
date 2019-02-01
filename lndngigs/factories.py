@@ -51,6 +51,14 @@ def get_event_listing_lite(logger, redis_client: Redis) -> EventListingInterface
         cache_key_prefix="events-lite"
     )
 
+
+def get_event_listing_lite_no_cache(logger) -> EventListingInterface:
+    return AsyncEventListingLite(
+        logger=logger,
+        event_loop=asyncio.get_event_loop()
+    )
+
+
 def get_slack_bot(logger, config: Config, redis_client: Redis) -> SlackBot:
     return SlackBot(
         logger=logger,
