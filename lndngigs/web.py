@@ -1,4 +1,3 @@
-import redis
 from flask import Flask, request, jsonify
 
 from lndngigs.factories import *

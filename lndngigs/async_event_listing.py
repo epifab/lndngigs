@@ -2,7 +2,7 @@ import asyncio
 
 from aiohttp import ClientSession
 
-from lndngigs.entities import Event, Artist, ArtistLite
+from lndngigs.entities import Event, ArtistWithMeta, Artist
 from lndngigs.event_listing import EventListingInterface, LastFmApi, SongkickScraper
 
 
@@ -21,16 +21,17 @@ class AsyncEventListing(SongkickScraper, EventListingInterface):
     async def scrape_event(self, events_date, url):
         event = self.parse_event_page(self._logger, url, await fetch_url(url), events_date)
 
-        async def get_artist(artist_name):
-            return Artist(
+        async def get_artist(artist: Artist):
+            return ArtistWithMeta(
                 tags = await self._event_loop.run_in_executor(None, self._lastfm_api.artist_tags, artist_name),
                 image_url = await self._event_loop.run_in_executor(None, self._lastfm_api.artist_image_url, artist_name),
-                name = artist_name
+                name = artist.name,
+                url = artist.url
             )
 
         future_artists = [
-            get_artist(artist_name)
-            for artist_name in event.artists
+            get_artist(artist)
+            for artist in event.artists
         ]
 
         return Event(
@@ -77,19 +78,7 @@ class AsyncEventListingLite(SongkickScraper, EventListingInterface):
         self._event_loop = event_loop
 
     async def scrape_event(self, events_date, url):
-        event = self.parse_event_page(self._logger, url, await fetch_url(url), events_date)
-
-        artists = [
-            ArtistLite(artist_name)
-            for artist_name in event.artists
-        ]
-
-        return Event(
-            link=event.link,
-            artists=artists,
-            venue=event.venue,
-            date=events_date
-        )
+        return self.parse_event_page(self._logger, url, await fetch_url(url), events_date)
 
     async def scrape_event_listing_page(self, events_date, url):
         event_urls, page_urls = self.parse_event_listing_page(self._logger, url, await fetch_url(url))

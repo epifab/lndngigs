@@ -6,7 +6,7 @@ from pylast import COVER_MEDIUM
 from redis import Redis
 from lxml import html
 
-from lndngigs.entities import Event, Venue, Artist, ArtistLite
+from lndngigs.entities import Event, Venue, ArtistWithMeta, Artist
 from lndngigs.utils import ValidationException, parse_date
 
 
@@ -106,32 +106,45 @@ class SongkickScraper:
         tree = html.fromstring(content)
 
         artists = [
-            element.text.strip()
+            Artist(
+                url="http://www.songkick.com{}".format(element.attrib["href"]),
+                name=element.text.strip()
+            )
             for element in tree.cssselect(".line-up a")
+            if "href" in element.attrib and element.attrib["href"].startswith("/artists/")
+        ] or [
+            # Sometimes the line-up is missing, let's try to get them from the summary
+            Artist(
+                url="http://www.songkick.com{}".format(element.attrib["href"]),
+                name=element.text.strip()
+            )
+            for element in tree.cssselect(".summary a")
             if "href" in element.attrib and element.attrib["href"].startswith("/artists/")
         ]
 
-        if not artists:
-            # Sometimes the line-up is missing, let's try to get them from the summary
-            artists = [
-                element.text.strip()
-                for element in tree.cssselect(".summary a")
-                if "href" in element.attrib and element.attrib["href"].startswith("/artists/")
-            ]
+        def first_item(list_or_none):
+            try:
+                return list_or_none[0]
+            except IndexError:
+                return None
 
-        venue_name = ",".join([
-            element.text.strip()
+        venue = first_item([
+            Venue(
+                url="http://www.songkick.com{}".format(element.attrib["href"]),
+                name=element.text.strip(),
+                address=", ".join(
+                    [
+                        element.text.strip()
+                        for element in tree.cssselect("p.venue-hcard span")
+                        if element.text is not None and element.text.strip() != ""
+                    ][:3]
+                )
+            )
             for element in tree.cssselect(".location a")
             if element.attrib["href"].startswith("/venues/")
-        ]) or "?"
+        ])
 
-        venue_address = ", ".join([
-            element.text.strip()
-            for element in tree.cssselect("p.venue-hcard span")
-            if element.text is not None and element.text.strip() != ""
-        ][:3])
-
-        return Event(link=url, artists=artists, venue=Venue(venue_name, venue_address), date=events_date)
+        return Event(link=url, artists=artists, venue=venue, date=events_date)
 
     @staticmethod
     def parse_event_listing_page(logger, url, content):
@@ -176,12 +189,20 @@ class CachedEventListing(EventListingInterface):
 
         def parse_artist(artist):
             try:
-                return Artist(artist["name"], artist["tags"], artist["image_url"])
+                return ArtistWithMeta(
+                    url=artist["url"],
+                    name=artist["name"],
+                    tags=artist["tags"],
+                    image_url=artist["image_url"]
+                )
             except KeyError:
-                return ArtistLite(artist["name"])
+                return Artist(
+                    url=artist["url"],
+                    name=artist["name"]
+                )
 
         def parse_venue(venue):
-            return Venue(venue, "") if type(venue) == str else Venue(venue["name"], venue["address"])
+            return Venue(url=venue["url"], name=venue["name"], address=venue["address"]) if venue else None
 
         return [
             Event(
