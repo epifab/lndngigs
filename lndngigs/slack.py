@@ -1,4 +1,4 @@
-from slackclient import SlackClient
+import slack
 
 from lndngigs.entities import Event
 from lndngigs.utils import ValidationException
@@ -15,7 +15,8 @@ class SlackCommandError(Exception):
 
 class SlackBot:
     def __init__(self, logger, event_listing: EventListingInterface, slack_api_token):
-        self._client = SlackClient(slack_api_token)
+        self._client = slack.WebClient(slack_api_token)
+        self._rtm = slack.RTMClient(token=slack_api_token)
         if not self._client.rtm_connect():
             raise SlackException("Cannot connect to Slack")
         self._logger = logger
@@ -31,8 +32,7 @@ class SlackBot:
         )
 
     def send_message(self, message, channel):
-        results = self._client.api_call(
-            "chat.postMessage",
+        results = self._client.chat_postMessage(
             channel=channel,
             text=message,
             as_user=True
@@ -86,17 +86,15 @@ class SlackBot:
             )
 
     def work(self):
-        self._logger.info("Slack bot up and running!")
-        try:
-            while True:
-                for message in self._client.rtm_read():
-                    if message['type'] == 'message' and 'user' in message and 'bot_id' not in message:
-                        self._logger.info("Received message from `{}`: `{}`".format(message["user"], message["text"]))
-                        self.run_command(
-                            text=message["text"],
-                            user=message["user"],
-                            channel=message["channel"]
-                        )
-        finally:
-            self._logger.info("Slack bot going to sleep")
+        @slack.RTMClient.run_on(event='message')
+        def run_command(**payload):
+            message = payload['data']
+            if message['type'] == 'message' and 'user' in message and 'bot_id' not in message:
+                self._logger.info("Received message from `{}`: `{}`".format(message["user"], message["text"]))
+                self.run_command(
+                    text=message["text"],
+                    user=message["user"],
+                    channel=message["channel"]
+                )
 
+        self._rtm.start()
