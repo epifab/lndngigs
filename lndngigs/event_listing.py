@@ -100,14 +100,14 @@ class SongkickScraper:
     @classmethod
     def get_events_listing_url(cls, location, events_date):
         date_filters = \
-            "&filters%5BminDate%5D={month}%2F{day}%2F{year}" \
-            "&filters%5BmaxDate%5D={month}%2F{day}%2F{year}".format(
+            "filters%5BminDate%5D={month:02}%2F{day:02}%2F{year}" \
+            "&filters%5BmaxDate%5D={month:02}%2F{day:02}%2F{year}".format(
                 year=events_date.year,
                 month=events_date.month,
                 day=events_date.day,
             )
 
-        return "https://www.songkick.com/metro_areas/{location}?utf8=✓{date_filters}".format(
+        return "https://www.songkick.com/metro-areas/{location}?utf8=✓{date_filters}".format(
             location=location,
             date_filters=date_filters
         )
