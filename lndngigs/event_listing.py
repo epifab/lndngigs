@@ -56,11 +56,23 @@ class LastFmApi:
 
 class SongkickScraper:
     LOCATIONS = {
+        # Uk
         "london": "24426-uk-london",
+        "birmingham": "24542-uk-birmingham",
+        "manchester": "24475-uk-manchester",
+        "glasgow": "24473-uk-glasgow",
+        "newcastle": "24577-uk-newcastle-upon-tyne",
+        "sheffield": "24531-uk-sheffield",
+        "liverpool": "24526-uk-liverpool",
+        "leeds": "24495-uk-leeds",
+        "bristol": "24521-uk-bristol",
+        "belfast": "24523-uk-belfast",
+        # Europe
         "berlin": "28443-germany-berlin",
         "amsterdam": "31366-netherlands-amsterdam",
         "barcelona": "28714-spain-barcelona",
-        "bristol": "24521-uk-bristol",
+        "milan": "30338-italy-milan",
+        # US
         "newyork": "7644-us-new-york"
     }
 
