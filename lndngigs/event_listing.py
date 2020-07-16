@@ -165,8 +165,8 @@ class SongkickScraper:
 
         event_urls = {
             "http://www.songkick.com{}".format(element.attrib["href"])
-            for element in tree.cssselect(".event-listings a")
-            if element.attrib["href"].startswith("/concerts/")
+            for element in tree.cssselect("a")
+            if "href" in element.attrib and element.attrib["href"].startswith("/concerts/")
         }
 
         page_urls = {
