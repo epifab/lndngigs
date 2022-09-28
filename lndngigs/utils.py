@@ -1,9 +1,5 @@
-import json
 import os
-import time
 from datetime import date, timedelta, datetime
-
-from redis import Redis
 
 
 class ValidationException(Exception):
@@ -50,32 +46,5 @@ class Config:
             raise Exception("Variable '{}' is invalid".format(key))
 
     def __init__(self):
-        self.LASTFM_API_KEY = self.get("LASTFM_API_KEY")
-        self.LASTFM_API_SECRET = self.get("LASTFM_API_SECRET")
-        self.SLACK_API_TOKEN = self.get("SLACK_API_TOKEN")
-        self.SLACK_VALIDATION_TOKEN = self.get("SLACK_VALIDATION_TOKEN")
-        self.REDIS_URL = self.get("REDIS_URL")
+        self.REDIS_URL = self.get("REDIS_URL", default=None)
         self.DEBUG = self.get("DEBUG", convert=bool, default=False)
-
-
-class CommandMessagesQueue:
-    QUEUE_NAME = "slack-commands"
-
-    def __init__(self, redis_client: Redis, message_ttl=timedelta(seconds=10)):
-        self._redis_client = redis_client
-        self._message_ttl = message_ttl
-
-    def push(self, message):
-        self._redis_client.lpush(self.QUEUE_NAME, json.dumps(message).encode("utf-8"))
-
-    def pop(self):
-        while True:
-            message = self._redis_client.rpop(self.QUEUE_NAME)
-            if message is None:
-                time.sleep(0.1)
-            else:
-                return json.loads(message.decode("utf-8"))
-
-    def messages(self):
-        while True:
-            yield self.pop()
