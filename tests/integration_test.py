@@ -7,10 +7,8 @@ import time
 
 from datetime import date
 from flask.testing import FlaskClient
-from pylast import COVER_SMALL, COVER_MEDIUM, COVER_LARGE, COVER_EXTRA_LARGE
 
-from lndngigs.event_listing import LastFmApi
-from lndngigs.async_event_listing import AsyncEventListing
+from lndngigs.async_event_listing import AsyncEventListingLite
 from lndngigs.factories import get_logger
 from lndngigs.utils import Config
 from lndngigs.web import build_app
@@ -34,34 +32,16 @@ def config():
 
 
 @pytest.fixture()
-def lastfm_api(config, logger):
-    return LastFmApi(logger=logger, lastfm_api_key=config.LASTFM_API_KEY, lastfm_api_secret=config.LASTFM_API_SECRET)
-
-
-@pytest.fixture()
 def flask_client(config, logger):
     return build_app(config, logger).test_client()
 
 
-def test_lastfm_api(lastfm_api: LastFmApi):
-    tags = lastfm_api.artist_tags("radiohead")
-    images = lastfm_api.artist_image_url("radiohead")
-    assert len(tags) == 10
-    assert images
-
-
-def test_lastfm_api_with_unknown_artist(lastfm_api: LastFmApi):
-    tags = lastfm_api.artist_tags("foobarbaz___123!")
-    assert len(tags) == 0
-
-
-def test_event_listingv3(logger, lastfm_api: LastFmApi):
+def test_event_listingv3(logger):
     with timer():
         event_loop = asyncio.get_event_loop()
-        event_listing = AsyncEventListing(
+        event_listing = AsyncEventListingLite(
             logger=logger,
-            event_loop=event_loop,
-            lastfm_api=lastfm_api
+            event_loop=event_loop
         )
         events = event_listing.get_events(
             event_listing.parse_event_location("london"),
@@ -83,12 +63,11 @@ def test_gigs_endpoint(flask_client: FlaskClient):
     assert len(json_response["gigs"]) > 10
 
 
-def test_event_listing_with_utf8(logger, lastfm_api: LastFmApi):
+def test_event_listing_with_utf8(logger):
     event_loop = asyncio.get_event_loop()
-    event_listing = AsyncEventListing(
+    event_listing = AsyncEventListingLite(
         logger=logger,
-        event_loop=event_loop,
-        lastfm_api=lastfm_api
+        event_loop=event_loop
     )
     event = event_loop.run_until_complete(event_listing.scrape_event(
         date.today(),

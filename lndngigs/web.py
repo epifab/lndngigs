@@ -1,10 +1,10 @@
 from flask import Flask, request, jsonify
 
 from lndngigs.factories import *
-from lndngigs.utils import Config, CommandMessagesQueue, ValidationException
+from lndngigs.utils import Config, ValidationException
 
 
-def build_app(config, logger, redis_client):
+def build_app(logger, redis_client):
     app = Flask(__name__)
 
     @app.route("/")
@@ -14,7 +14,7 @@ def build_app(config, logger, redis_client):
     @app.route("/gigs", defaults={"location": "london", "events_date": "today"})
     @app.route("/gigs/<location>/<events_date>", methods=['GET'])
     def gigs(location, events_date):
-        if request.args.get("mode") == "nocache":
+        if request.args.get("mode") == "nocache" or not redis_client:
             event_listing = get_event_listing_lite_no_cache(logger=logger)
 
         else:
@@ -45,25 +45,9 @@ def build_app(config, logger, redis_client):
 
         return jsonify({"gigs": events}), 200
 
-    @app.route("/slack/gigs", methods=['POST'])
-    def slack_gigs():
-        if "token" not in request.form or request.form["token"] != config.SLACK_VALIDATION_TOKEN:
-            return "Invalid token", 403
-
-        redis_client = redis.from_url(config.REDIS_URL)
-
-        queue = CommandMessagesQueue(redis_client=redis_client)
-        queue.push({
-            "text": "gigs {}".format(request.form["text"]),
-            "user": request.form["user_name"],
-            "channel": "@{}".format(request.form["user_name"])  # request.form["channel_id"],
-        })
-
-        return "Yo! I asked a friend about those gigs... stay tuned!"
-
     return app
 
 
 if __name__ == 'lndngigs.web':
     config = Config()
-    app = build_app(config=config, logger=get_logger(config.DEBUG), redis_client=get_redis_client(config))
+    app = build_app(logger=get_logger(config.DEBUG), redis_client=get_redis_client(config))

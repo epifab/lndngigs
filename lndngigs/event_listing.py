@@ -1,8 +1,6 @@
 import json
 from datetime import timedelta, date
 
-import pylast
-from pylast import SIZE_MEDIUM
 from redis import Redis
 from lxml import html
 
@@ -19,39 +17,6 @@ class EventListingInterface:
 
     def parse_event_location(self, location):
         raise NotImplementedError
-
-
-class LastFmApi:
-    def __init__(self, logger, lastfm_api_key, lastfm_api_secret):
-        self._logger = logger
-        self._lastfm = pylast.LastFMNetwork(
-            api_key=lastfm_api_key,
-            api_secret=lastfm_api_secret
-        )
-
-    def artist_tags(self, artist_name):
-        try:
-            self._logger.debug("Retrieving tags for `{}`".format(artist_name))
-            return [str(tag.item) for tag in self._lastfm.get_artist(artist_name).get_top_tags(limit=10)]
-        except pylast.WSError as ex:
-            if ex.status == '6':
-                self._logger.debug("Artist not found on lastfm: `{}`".format(artist_name))
-                # Status returned when the artists couldn't be found
-                # http://www.last.fm/api/errorcodes
-                return []
-            raise
-
-    def artist_image_url(self, artist_name):
-        try:
-            self._logger.debug("Retrieving tags for `{}`".format(artist_name))
-            return self._lastfm.get_artist(artist_name).get_cover_image(SIZE_MEDIUM)
-        except pylast.WSError as ex:
-            if ex.status == '6':
-                self._logger.debug("Artist not found on lastfm: `{}`".format(artist_name))
-                # Status returned when the artists couldn't be found
-                # http://www.last.fm/api/errorcodes
-                return None
-            raise
 
 
 class SongkickScraper:

@@ -3,7 +3,7 @@ lndngigs:
   links:
    - redis:redis.local
   volumes:
-   - .:/home/dev/code
+   - .:/app
   environment:
    - REDIS_URL=redis://redis.local:6379
    - DEBUG=1
