@@ -87,15 +87,7 @@ class SongkickScraper:
                 url="http://www.songkick.com{}".format(element.attrib["href"]),
                 name=element.text.strip()
             )
-            for element in tree.cssselect(".line-up a")
-            if "href" in element.attrib and element.attrib["href"].startswith("/artists/")
-        ] or [
-            # Sometimes the line-up is missing, let's try to get them from the summary
-            Artist(
-                url="http://www.songkick.com{}".format(element.attrib["href"]),
-                name=element.text.strip()
-            )
-            for element in tree.cssselect(".summary a")
+            for element in tree.cssselect(".event-brief a")
             if "href" in element.attrib and element.attrib["href"].startswith("/artists/")
         ]
 
@@ -109,16 +101,10 @@ class SongkickScraper:
             Venue(
                 url="http://www.songkick.com{}".format(element.attrib["href"]),
                 name=element.text.strip(),
-                address=", ".join(
-                    [
-                        element.text.strip()
-                        for element in tree.cssselect("p.venue-hcard span")
-                        if element.text is not None and element.text.strip() != ""
-                    ][:3]
-                )
+                address=""
             )
-            for element in tree.cssselect(".location a")
-            if element.attrib["href"].startswith("/venues/")
+            for element in tree.cssselect(".event-brief a")
+            if "href" in element.attrib and element.attrib["href"].startswith("/venues/")
         ])
 
         return Event(link=url, artists=artists, venue=venue, date=events_date)

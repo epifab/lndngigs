@@ -33,7 +33,9 @@ def config():
 
 @pytest.fixture()
 def flask_client(config, logger):
-    return build_app(config, logger).test_client()
+    from lndngigs.factories import get_redis_client
+    redis_client = get_redis_client(config)
+    return build_app(logger, redis_client).test_client()
 
 
 def test_event_listingv3(logger):
@@ -74,3 +76,4 @@ def test_event_listing_with_utf8(logger):
         "http://www.songkick.com/concerts/30913429-robag-wruhme-at-oval-space"
     ))
     assert "Die Vögel" in [artist.name for artist in event.artists]
+    assert "Oval Space" in event.venue.name

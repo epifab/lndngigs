@@ -2,8 +2,9 @@ import asyncio
 
 from aiohttp import ClientSession
 
+from lndngigs.entities import Venue
 from lndngigs.event_listing import EventListingInterface, SongkickScraper
-
+from lxml import html
 
 async def fetch_url(url):
     async with ClientSession() as session:
@@ -23,6 +24,17 @@ class AsyncEventListingLite(SongkickScraper, EventListingInterface):
         event_urls, page_urls = self.parse_event_listing_page(self._logger, url, await fetch_url(url))
         return await asyncio.gather(*[self.scrape_event(events_date, url) for url in event_urls]), page_urls
 
+    async def scrape_venue_address(self, url):
+        self._logger.debug("Scraping venue at {}".format(url))
+        tree = html.fromstring(await fetch_url(url))
+        return ", ".join(
+            [
+                element.text.strip()
+                for element in tree.cssselect("p.venue-hcard span span")
+                if element.text is not None and element.text.strip() != ""
+            ][:3]
+        )
+
     async def scrape_events(self, events_date, url):
         scraped_page_urls = set()
         discovered_page_urls = {url}
@@ -41,6 +53,32 @@ class AsyncEventListingLite(SongkickScraper, EventListingInterface):
                     and "page=1" not in url  # This will prevent the first page from being scraped twice
                 }
                 all_events += page_events
+
+        # Extract unique venue URLs
+        unique_venue_urls = {
+            event.venue.url
+            for event in all_events
+            if event.venue is not None
+        }
+
+        # Scrape all unique venues concurrently
+        venue_scraping_tasks = [self.scrape_venue_address(url) for url in unique_venue_urls]
+        venue_addresses = await asyncio.gather(*venue_scraping_tasks)
+
+        # Create a mapping from venue URL to address
+        venue_url_to_address = dict(zip(unique_venue_urls, venue_addresses))
+
+        # Update all events with the scraped venue addresses
+        all_events = [
+            event._replace(
+                venue=Venue(
+                    url=event.venue.url,
+                    name=event.venue.name,
+                    address=venue_url_to_address[event.venue.url]
+                )
+            ) if event.venue is not None else event
+            for event in all_events
+        ]
 
         return all_events
 
